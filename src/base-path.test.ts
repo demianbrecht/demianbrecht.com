@@ -70,8 +70,8 @@ describe('non-root builds', () => {
       expect(home).not.toContain('Advanced Mercurial Debugging');
       expect(archive).toContain('Entry points in Python');
       expect(archive).toContain('Advanced Mercurial Debugging');
-      expect(occurrences(archive, 'Originally published in ')).toBe(4);
-      expect(occurrences(home, 'Originally published in ')).toBe(4);
+      expect(occurrences(archive, 'Originally published in ')).toBe(5);
+      expect(occurrences(home, 'Originally published in ')).toBe(5);
       expect(archive).toContain('Salesforce Engineering');
       expect(home).toContain('Salesforce Engineering');
     } finally {

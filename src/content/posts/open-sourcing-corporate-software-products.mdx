@@ -1,0 +1,64 @@
+---
+title: 'The Complexities and Rewards of Open Sourcing Corporate Software Products'
+description: >-
+  Two Salesforce engineers describe separating a Django API framework from a
+  legacy application and navigating the process of releasing it as open source.
+pubDate: 2020-11-17
+tags: ['open-source', 'django', 'software-architecture', 'developer-workflow']
+draft: false
+originallyPublished:
+  publisher: Stack Overflow Blog
+  url: https://stackoverflow.blog/2020/11/17/the-complexities-and-rewards-of-open-sourcing-corporate-software-products/
+---
+
+*Co-authored with [Drew Shafer](https://github.com/dshafer), Principal Member of Technical Staff at Salesforce.*
+
+Two engineers at Salesforce talk about how they decoupled a complex library from old spaghetti logic, then open sourced that library by creating a new internal process where none existed before.
+
+The year was 2011, and we at [Toopher](https://www.toopher.com/) were building a complex authentication API. Our small startup was based on a graduate school project by our founder, [Evan Grim](https://www.linkedin.com/in/evangrim/), and the authentication API was our sole product. As a startup, we were focused on delivering value, so we leveraged existing tools rather than building everything from scratch.
+
+We wrote the product in Django, a mature, batteries-included open source Python web framework geared toward rapid application development. We used [Piston](https://pypi.org/project/django-piston/) to handle API creation. It was a decent framework, but it was eventually abandoned, forcing us to develop our own solution: [django-declarative-apis](https://github.com/salesforce/django-declarative-apis).
+
+By then, our startup had been [acquired by Salesforce](https://techcrunch.com/2015/04/01/toopher-salesforce/). The [Salesforce Authenticator](https://www.salesforce.com/solutions/mobile/app-suite/security/) app was built as the front end to that authentication API. We believed `django-declarative-apis` filled a gap in the Django ecosystem and wanted to open source it, but faced two problems.
+
+First, the framework was deeply embedded in the automated two-factor-authentication API. Teasing it into a separately releasable package would be a challenge.
+
+Second, although Salesforce supported employees working on open source, it did not then have a process for converting previously proprietary code into open source.
+
+We learned two big things: how to architect and decouple a Django library from legacy application logic, and how to work through a large organization to release that code publicly.
+
+## Against spaghetti logic
+
+The original API framework was procedural: start with a request, extract parameters, do the work, and form a response in one method. We added features continuously without breaking existing behavior, eventually accumulating handlers we were ashamed of. One handler was roughly 500 lines long.
+
+That made the system brittle. Different behavior ran based on input parameters, with many interdependencies, but customers depended on every piece of it. We had considered a version two for some time. Its central goal was declarative handlers: behavior should be discoverable from the code through static analysis, including how to call a handler and what response it produces.
+
+We also wanted to separate the HTTP request-response cycle from the business logic. Existing options required handlers to work directly with request objects and perform data transformations in the handler itself. Instead, a class could map request parameters to fields, transform them into handler-ready data, gather dependencies, and prepare a response. The handler would contain only business logic.
+
+Side effects, such as sending email, could live in separate task methods. A decorator could defer those tasks until after the handler returned its response. The result was far more maintainable handlers.
+
+To prove the framework was feature-complete, we reimplemented the hairy 500-line handler. If it could support that beast, it could support the remainder of the API. The complete port took about a year, after half the API and that handler were moved in an initial burst.
+
+Although the framework began inside the authenticator API and app, it was useful enough to become a separate library. The first step was simply copying it into a clean top-level module in the main project. That messy move exposed the coupling and showed us which knots needed to be untangled. We refactored the broken dependencies in the new module, updated the original API to work with the fixes, removed the duplicate framework code, and made the new project installable within Salesforce: a true library rather than a submodule.
+
+## Share what you're proud of
+
+We always intended to open source the framework. When you create a novel solution that you are proud of, letting others use and contribute to it helps the software community. Open source would also give us access to tooling such as Travis CI and make it easier to consume the framework in Salesforce projects.
+
+The effort became a priority when I joined the team as an open-source advocate. The framework was already a heavily used submodule across Salesforce projects, making an external release a natural next step. We also wanted to give teammates who enjoyed open source but had not contributed before an opportunity to develop publicly alongside customers and hobbyists.
+
+Developing in public adds useful pressure: anyone can see the code, comment on pull requests, or contribute. That encourages thoughtful changes and clearer commit messages, making the development process more self-documenting.
+
+The engineering team supported the plan, after which we worked with legal. The company had processes for beginning a new open-source project or working on an existing one, but not for extracting a framework from a security-related product and releasing it publicly.
+
+We had to be meticulous. We reviewed the code for patentable material and worked with product security to ensure it did not reveal an easy way to attack us. It was the first project of its kind, so the process took about six months. Working through those kinks helped make future releases more streamlined and commonplace.
+
+There were practical benefits beyond community participation. We deployed the API on Heroku, where publicly available dependencies were easier to install. As a closed Salesforce library, consuming `django-declarative-apis` required extra work, including vendoring its entire source tree into dependent projects. Once it was open source, consumers could specify a dependency and version instead.
+
+The release also gave us access to best-of-breed tooling and their communities. Community contributions would be welcome, but the project was worthwhile even without them.
+
+We are proud of this library. A complex endpoint in `django-declarative-apis` makes clear how much the framework protects its users from writing bad code. We accepted complexity inside the framework as a tradeoff for expressing simpler handlers every day.
+
+In the end, both parts were learning experiences. We had created technical debt, and starting over proved better than piecemeal repairs. The legal review took longer than expected, but it enabled us to give something back to the commons that we and Salesforce could stand behind.
+
+We invite you to use and contribute to [django-declarative-apis](https://github.com/salesforce/django-declarative-apis). More broadly, consider open sourcing libraries you work on, whether at work or in personal projects. It benefits teams and their software, while giving collaborators something meaningful to contribute to in public.
