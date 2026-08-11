@@ -1,0 +1,106 @@
+---
+title: 'Advanced Mercurial Debugging'
+description: >-
+  A real-world walkthrough of diagnosing a Mercurial HTTP 400 error caused by
+  oversized discovery-request headers.
+pubDate: 2015-01-02
+tags: ['mercurial', 'debugging', 'http', 'python']
+draft: false
+archived: true
+heroImage: ../../assets/posts/advanced-mercurial-debugging.png
+heroImageAlt: 'Advanced Mercurial Debugging'
+---
+
+*An in-depth look at debugging Mercurial using a real-world issue.*
+
+## Overview
+
+While revising [From git to hg](../from-git-to-hg/), I ran into a blocking issue while working on CPython's Mercurial repository. This is the process I used to identify the problem and possible solutions. The details are specific, but the approach helps diagnose other Mercurial HTTP(S) failures.
+
+## The problem
+
+After finishing one bookmarked issue, returning to the last public default-branch commit, and committing work on another, a pull failed:
+
+```console
+$ hg pull
+pulling from https://hg.python.org/cpython
+searching for changes
+abort: HTTP Error 400: Bad request
+```
+
+More logging did not initially make the source of the problem obvious:
+
+```console
+$ hg pull --debug -vv
+using https://hg.python.org/cpython
+sending capabilities command
+pulling from https://hg.python.org/cpython
+preparing listkeys for "bookmarks"
+sending listkeys command
+query 1; heads
+sending batch command
+searching for changes
+taking initial sample
+query 2; still undecided: 10624, sample size is: 200
+sending known command
+abort: HTTP Error 400: Bad request
+```
+
+## Searching for answers
+
+Searching for the error led to [a post by Ilia Barahovsky](http://barahilia.github.io/blog/computers/2014/10/09/hg-pull-via-http-fails-400.html). The affected repository used HTTPS and I did not have its private keys, so packet inspection could not reveal application data.
+
+## Digging deeper
+
+Mercurial is Python, so I followed the source and set a breakpoint in `mercurial.httppeer.httppeer._callstream`. Inspecting the caught error in `pdb` showed only the server response:
+
+```console
+(Pdb) inst.read()
+'<html><body><h1>400 Bad request</h1>\nYour browser sent an invalid request.\n</body></html>\n\n'
+```
+
+The request object exposed the relevant clue: its `X-hgarg-*` headers contained serialized node IDs. Measuring the serialized headers showed their size:
+
+```console
+(Pdb) len('\r\n'.join('{}: {}'.format(k, v) for k, v in req.headers.items()))
+8417
+```
+
+That aligned with the earlier report. Web servers impose different default header-size limits. Discussion with `#python-dev` identified HAProxy's `tune.maxrewrite` setting as the immediate culprit: `bufsize - tune.maxrewrite` could not accommodate the request headers.
+
+### A note on debugging without working from source
+
+Using a tagged source checkout of Mercurial makes it easy to modify and contribute fixes. But debugging an installed copy is also straightforward because it is interpreted Python:
+
+```console
+>>> import mercurial
+>>> mercurial.__file__
+'/Library/Python/2.7/site-packages/mercurial/__init__.pyc'
+```
+
+The containing directory holds the source files. Open and edit them as needed, perhaps with elevated permissions.
+
+## How did it come to this?
+
+The traceback led from `commands.pull` through `exchange`, `discovery`, and `wireproto` to the HTTP peer. The key call was:
+
+```python
+yesno = remote.known(dag.externalizeall(sample))
+```
+
+`sample` held 200 revisions. `dag.externalizeall(sample)` produced node IDs; `mercurial.wireproto.wirepeer.known` hex-encoded them. Those values became the `X-hgarg-*` request headers.
+
+## So what does this tell us?
+
+When a remote head does not know about a local head, Mercurial compares the local head's history in samples. The default is 200 commit hashes per request, and the hashes are sent as HTTP headers. In this case, the worst-case request-header size was roughly 8.5 KB, including `Content-Length`.
+
+## The solution
+
+This problem requires all of the following:
+
+- Mercurial over HTTP(S).
+- A local head that the remote does not know.
+- Enough commits to exceed the host or proxy header limit.
+- A server or proxy with a limit lower than the resulting request headers.
+
+The solution is to increase the application server or proxy header-size limit above the headers generated in the worst case.

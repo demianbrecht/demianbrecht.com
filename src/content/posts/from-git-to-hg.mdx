@@ -1,0 +1,191 @@
+---
+title: 'From git to hg'
+description: >-
+  A guide for prospective CPython contributors familiar with Git who need a
+  practical Mercurial workflow built around bookmarks.
+pubDate: 2015-01-01
+tags: ['mercurial', 'git', 'version-control', 'python']
+draft: false
+archived: true
+heroImage: ../../assets/posts/from-git-to-hg.jpeg
+heroImageAlt: 'From git to hg'
+---
+
+*A guide aimed at introducing prospective CPython developers familiar with Git to the world of Mercurial. It was also published in the [Python Developer's Guide](https://docs.python.org/devguide/gitdevs.html).*
+
+## Overview
+
+This guide is for prospective contributors accustomed to Git-based development. Its goal is to lower the barrier to using Mercurial natively, rather than through a Git bridge. It presents one possible workflow; it is not the only way to work with Mercurial.
+
+The case study is:
+
+1. Clone CPython.
+2. Find or create `issueA`.
+3. Work on it and submit a patch for review.
+4. Work on `issueB` while the first patch is reviewed.
+5. Address review comments on `issueA`.
+6. Resume `issueB`.
+
+## Git workflow
+
+A simplified Git implementation looks like this:
+
+```bash
+git clone git@github.com:python/cpython.git
+# work on issueA
+git checkout -b issueA
+git commit -a
+# start issueB
+git checkout master
+git checkout -b issueB
+git commit -a
+# address review comments
+git checkout issueA
+git commit -a
+git pull --rebase
+git diff master..issueA > issueA.patch
+# continue issueB
+git checkout issueB
+```
+
+## Main differences between Git and hg
+
+### Mercurial branches are global and permanent
+
+Mercurial named branches are intended for long-lived concepts such as release branches. They do not map neatly to short-lived personal feature branches. Although selected branches can be pushed, the permanence is important to understand.
+
+## Workflow options using Mercurial
+
+### Named branches
+
+Named branches are permanent and global, so they are not a great fit for this local feature-development workflow.
+
+### Queues
+
+The patch queue extension can create a similar result, but its workflow differs substantially from Git.
+
+### Bookmarks
+
+Bookmarks track multiple lines of development without putting branch information in permanent history. They are the closest match for the workflow here.
+
+## An introduction to Mercurial bookmarks
+
+### Bookmarks are not Git branches
+
+Bookmarks are named references to commits that automatically advance as you commit. A new named branch is not created when you commit from a prior changeset, even though the resulting workflow resembles Git branching.
+
+### Bookmarks are local
+
+Bookmarks are intended for local development and can be deleted easily. Deleting a bookmark does not delete its changesets; the strip extension is needed for that. Bookmarks can be published only when explicitly pushed.
+
+## Mercurial workflow
+
+The following uses the workflow above. `hg log -G -l <count>` is particularly useful when starting with Mercurial because it renders the changeset graph.
+
+### Cloning
+
+```bash
+hg clone https://hg.python.org/cpython
+hg log -Gl3
+```
+
+In the graph output, `@` identifies your current changeset.
+
+### Working on issueA
+
+Assuming the issue is against the current default tip, create a bookmark. It activates automatically:
+
+```bash
+hg bookmark issueA
+```
+
+Complete the work and commit it. Mercurial has no Git-style staging area, so all changes are committed:
+
+```bash
+hg commit -m 'fix for issueA'
+hg diff -c . > issueA.patch
+```
+
+The bookmark advances to the new commit. `hg diff -c` compares that revision with its parent regardless of the currently checked-out revision.
+
+### Working on issueB
+
+After submitting the first patch for review, return to the last public revision before creating another bookmark. Since bookmarks are not branches, you must know the revision to update to:
+
+```bash
+hg update 93654
+hg bookmark issueB
+```
+
+### Addressing issueA review comments
+
+Commit work in progress on `issueB`, then update back to the first bookmark:
+
+```bash
+hg commit -m 'issueB WIP'
+hg update issueA
+```
+
+Mercurial reports the divergent head; that is expected. After addressing the review, amend and produce an updated patch:
+
+```bash
+hg commit --amend
+hg diff -c issueA > issueA.patch
+```
+
+### Continue work on issueB
+
+```bash
+hg update issueB
+```
+
+## Rebasing your work
+
+Rebasing is optional. When a patch takes time to merge, you may need to reapply commits against the latest public version. The historical Git equivalent was:
+
+```bash
+git pull --rebase
+```
+
+The Mercurial equivalent was:
+
+```bash
+hg pull --rebase
+```
+
+Because it alters history, enable the extension in `.hgrc`:
+
+```ini
+[extensions]
+rebase =
+```
+
+## Workflow comparison
+
+```bash
+# git clone git@github.com:python/cpython.git
+hg clone https://hg.python.org/cpython
+
+# git checkout -b issueA
+# git commit -a
+hg bookmark issueA
+hg commit
+
+# git checkout master
+hg update [revision_number]
+# git checkout -b issueB
+# git commit -a
+hg bookmark issueB
+hg commit
+
+# git checkout issueA
+# git commit -a
+hg update issueA
+hg commit --amend
+
+# git diff master..issueA > issueA.patch
+hg diff -c issueA > issueA.patch
+
+# git checkout issueB
+hg update issueB
+```

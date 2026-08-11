@@ -1,0 +1,138 @@
+---
+title: 'Inner Sourcing: The Mechanics'
+description: >-
+  Part two: the communication, contributor model, and engineering practices that
+  make an inner-sourcing culture practical.
+pubDate: 2018-04-04
+tags: ['innersource', 'open-source']
+originallyPublished:
+  publisher: Salesforce Engineering
+  url: https://medium.com/salesforce-engineering/inner-sourcing-the-mechanics-c0b1421230fd
+heroImage: ../../../assets/posts/inner-sourcing-the-mechanics.jpeg
+heroImageAlt: 'Close-up of a bicycle drivetrain being adjusted'
+---
+
+*Photo by [Garett Mizunaka](https://unsplash.com/photos/xFjti9rYILo) on Unsplash.*
+
+*Part 2 of 3 of a blog series about Inner Sourcing: [what it is](../inner-sourcing-whats-this/), [how to go about implementing it](./), and [what the benefits and potential gotchas are](../inner-sourcing-the-ups-and-downs/). This part examines foundational aspects of building a collaborative, inner-sourcing culture within the confines of a closed-source software development company.*
+
+## The pillars of an inner-source culture
+
+### Open, cross-company, collaborative, creative communication
+
+Collaboration, creativity, and meaningful innovation depend on good
+communication. Whether teams use in-person discussions, chat, distribution
+lists, or forums, their mechanisms should be **discoverable** and **consistent**.
+
+Discoverable communication lets anyone find earlier discussions. Consistent
+communication means that the company uses a shared mechanism, or integrations
+that bring offline discussion into a common system. Teams can use different
+tools for different purposes, but people need a reliable way to find the
+conversation later.
+
+This does not mean that only one method must be employed. Different tools solve
+different purposes. At Salesforce, Chatter was used effectively in place of
+email: people with access could find conversation threads in search results,
+making the discussion more discoverable and consistent. Further useful thoughts
+on group communication are available at [communicationtheory.org](http://communicationtheory.org/).
+
+### Cross-company, collaborative development
+
+A traditional process takes a feature request from one team, prioritizes it,
+then has the owning team develop, test, and release it. That can satisfy a
+customer relationship, but it does not create a development partnership.
+
+Organizations are full of capable people who could contribute across team
+boundaries. Contributions enrich the owning team's product, while contributors
+are no longer blocked waiting for a request to be implemented. Calling consuming
+teams “customers” reinforces boundaries; calling them “partners” better reflects
+the collaborative effort that inner sourcing needs.
+
+## Implementation and adoption
+
+Implementation is not prescriptive: one shoe does not fit all. Still, a few
+practices can make a more collaborative environment easier to build.
+
+### Many contributors, few committers
+
+Closed-source teams often have a product owner or technical lead plus
+contributors. In an inner-source model, the lead remains responsible for the
+overall vision, architecture, and roadmap, while regular team members become
+**committers**.
+
+Committers are key stakeholders in the project's direction. They share the
+vision, communicate it to other stakeholders, and can merge their own work and
+external contributions. Contributors can provide code, documentation, or tests,
+but do not merge directly to the canonical repository or main branch.
+
+### Automation
+
+Successful collaborative projects maximize automation. A newcomer should be able
+to get a project running with commands such as `make build`, `make install`, and
+`make run`. Automated build and test pipelines also give contributors confidence
+before their work is merged.
+
+### Best practices
+
+A clear company-wide set of practices promotes consistency and lowers the cost
+of moving between projects. Open-source conventions are a useful starting point:
+they lower the entry barrier for experienced hires and make dependency
+inspection, debugging, and contribution easier.
+
+Teams should choose practices that suit them, but useful shared areas include:
+
+- Project setup, including directory structure and common files
+- Test and static-analysis utilities
+- Commonly used libraries
+- Shared coding standards
+
+A developer who understands one Python project should be able to move to another
+Python project owned by a different team with little overhead.
+
+### Marketing and communication
+
+Code is written, deployed, and eventually rots. If nobody knows it exists,
+nobody will maintain it. “Build it and they will come” does not apply to code:
+projects need to be marketed and need an active community.
+
+Consistent communication across team boundaries is fundamental. Before selecting
+a collaboration tool, define the problem it solves. Are teams discussing system
+design and architecture, or coordinating operational incidents? Tools that do
+not suit the real problem can make group communication worse.
+
+### VCS != DVCS
+
+Centralized version-control systems do not generally provide the same
+out-of-the-box support for flexible contributions as distributed systems such as
+Git. A centralized system can be configured to imitate some properties, but Git
+workflows such as forks and pull requests better support external contributors.
+Separate repositories also make it easier to keep project administration and
+committer lists independent.
+
+### Documentation
+
+Documentation should be a first-class citizen, as important as shipped code. It
+directly affects whether someone can contribute or integrate a project. Projects
+benefit from separate developer and user documentation, and should generate docs
+from code and comments where practical. Stale documentation can be worse than no
+documentation because it sends readers down the wrong path.
+
+### Generalized solutions
+
+Developers often see a feature request and immediately write code for a specific
+project. That creates code that is neither modular nor reusable. Recognizing
+assumptions and finding generalized alternatives takes design, implementation,
+testing, and practice. In return, reusable libraries can replace copy-paste and
+refactoring across teams.
+
+## Important: Not a prescription
+
+These are only some of the practices open-source projects use to create an open,
+collaborative culture. Different teams and organizations should implement them
+differently. The important part is applying the concepts and providing
+consistent interfaces that lower the barrier to contribution and reduce
+duplicated effort.
+
+*In the [next post](../inner-sourcing-the-ups-and-downs/) of this series, we'll
+look at the key benefits of an inner-sourcing culture and potential gotchas to
+be aware of.*

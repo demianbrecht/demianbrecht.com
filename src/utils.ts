@@ -4,16 +4,16 @@ import type { CollectionEntry } from 'astro:content';
  * Join the configured base path (`/` for the apex domain) with a site-relative
  * route, collapsing duplicate slashes.
  */
-export function url(href: string): string {
-  return `${import.meta.env.BASE_URL}/${href}`.replace(/\/{2,}/g, '/');
+export function url(href: string, baseUrl: string = import.meta.env.BASE_URL): string {
+  return `${baseUrl}/${href}`.replace(/\/{2,}/g, '/');
 }
 
-export function postUrl(id: string): string {
-  return url(`posts/${id}`);
+export function postUrl(id: string, baseUrl: string = import.meta.env.BASE_URL): string {
+  return url(`posts/${id}`, baseUrl);
 }
 
-export function tagUrl(tag: string): string {
-  return url(`tags/${slugifyTag(tag)}`);
+export function tagUrl(tag: string, baseUrl: string = import.meta.env.BASE_URL): string {
+  return url(`tags/${slugifyTag(tag)}`, baseUrl);
 }
 
 /** Tags are display strings; slugs are what appear in URLs. */
@@ -54,6 +54,12 @@ export function isVisible(post: Post): boolean {
   return import.meta.env.DEV || !post.data.draft;
 }
 
+/** Archived posts remain published but are omitted from the homepage timeline. */
+export function isCurrent(post: Post): boolean {
+  return isVisible(post) && !post.data.archived;
+}
+
 export function byNewest(a: Post, b: Post): number {
-  return b.data.pubDate.valueOf() - a.data.pubDate.valueOf();
+  const dateOrder = b.data.pubDate.valueOf() - a.data.pubDate.valueOf();
+  return dateOrder || a.id.localeCompare(b.id);
 }

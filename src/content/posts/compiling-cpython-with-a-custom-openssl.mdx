@@ -1,0 +1,76 @@
+---
+title: 'Compiling CPython with a custom OpenSSL'
+description: >-
+  A historical guide to building CPython 3.5 against a custom OpenSSL 1.0.2
+  installation to enable ALPN support on macOS.
+pubDate: 2015-01-28
+tags: ['python', 'cpython', 'openssl', 'macos']
+draft: false
+archived: true
+heroImage: ../../assets/posts/compiling-cpython-with-a-custom-openssl.png
+heroImageAlt: 'Compiling CPython with a custom OpenSSL'
+---
+
+*A quick how-to. The commands below are preserved from 2015 and target the then-current CPython and OpenSSL releases.*
+
+## Overview
+
+I recently went through a small amount of hassle trying to get Python 3.5 (dev) compiled with OpenSSL 1.0.2, which introduces support for [ALPN](http://en.wikipedia.org/wiki/Application-Layer_Protocol_Negotiation). I figured it would be a good idea to post a small how-to in the event someone else finds it useful, or more likely, I forget what I did.
+
+This how-to is aimed at OSX users, but should be mostly transferable to other supported platforms. At the time I ran through this exercise, Homebrew did not yet have OpenSSL 1.0.2 available, so this builds OpenSSL from source. Since then Homebrew added support, so you should be able to swap the cloning and compilation steps for `brew install openssl`.
+
+## OpenSSL
+
+Clone the OpenSSL repository:
+
+```bash
+git clone git@github.com:openssl/openssl.git
+git checkout OpenSSL_1_0_2
+```
+
+Configure and compile OpenSSL. The `Configure` line is specific to 64-bit OSX:
+
+```bash
+./Configure darwin64-x86_64-cc enable-ec_nistp_64_gcc_128 no-ssl2 no-ssl3 no-comp --openssldir=/usr/local/ssl/macos-x86_64
+make
+make test
+make install
+```
+
+## CPython configuration
+
+Open `Modules/Setup`, find `SSL=`, and replace it with the OpenSSL directory:
+
+```makefile
+# Socket module helper for socket(2)
+_socket socketmodule.c
+
+# Socket module helper for SSL support; comment out the other socket line above,
+# and possibly edit the SSL variable.
+SSL=/usr/local/ssl/macos-x86_64
+_ssl _ssl.c \
+  -DUSE_SSL -I$(SSL)/include -I$(SSL)/include/openssl \
+  -L$(SSL)/lib -lssl -lcrypto
+```
+
+Compile CPython:
+
+```bash
+./configure
+make
+```
+
+Verify that you have the expected OpenSSL version and that ALPN is enabled:
+
+```console
+$ ./python
+Python 3.5.0a0 (default:53e94a687570+, Jan 27 2015, 10:32:35)
+[GCC 4.2.1 Compatible Apple LLVM 6.0 (clang-600.0.56)] on darwin
+>>> import ssl
+>>> ssl.OPENSSL_VERSION
+'OpenSSL 1.0.2 22 Jan 2015'
+>>> ssl.HAS_ALPN
+True
+```
+
+Done.

@@ -1,0 +1,150 @@
+---
+title: 'From concept to announcement'
+description: >-
+  A practical guide to taking a Python package from an initial idea through
+  project setup, testing, PyPI distribution, and announcement.
+pubDate: 2014-06-09
+tags: ['python', 'open-source', 'packaging', 'testing']
+draft: false
+archived: true
+heroImage: ../../assets/posts/from-concept-to-announcement.png
+heroImageAlt: 'From concept to announcement'
+---
+
+## Tackling Python open source projects
+
+## Overview
+
+PyPI, GitHub, Google Code, and similar sites contain packages with very different layouts, test runners, and naming conventions. That can be confusing to new package authors. This is a record of my own process for taking a Python package from scratch through announcement.
+
+The post assumes GitHub, though another distributed version-control system can be substituted. It also assumes you use version control. Nobody skips that these days, right?
+
+## So you have an idea on how to solve a problem
+
+First, see whether someone already solved it. Search [PyPI](http://pypi.python.org/pypi), [GitHub](https://github.com/), Google Code, Bitbucket, and elsewhere. If an existing project solves the problem and is not disastrous, use it. If it is almost what you need, fork it and contribute. Do not rebuild the wheel.
+
+If you still need a new project, start with a prototype for a small scope or a high-level architecture diagram for a larger project. Good design is at least as important as good code; otherwise you will spend time refactoring or create hard-to-maintain spaghetti code.
+
+## PEP 8: Read it, learn it, love it
+
+There is not much more to say: [read it](http://www.python.org/dev/peps/pep-0008/).
+
+## Name your package
+
+Use a name indicative of the package's purpose. Package names should be lowercase with underscores; parent directories should use hyphens. A starting layout might be:
+
+```text
+my-package/
+  my_package/
+```
+
+## Virtual environments
+
+Develop each project in a virtual environment to keep dependencies separate from global modules. It makes dependencies visible through `pip freeze` and permits incompatible package versions across projects.
+
+I strongly suggested `virtualenvwrapper` over bare `virtualenv` at the time. I also kept a `global_requirements.txt` outside projects for universal development dependencies such as Sphinx.
+
+## The skeleton
+
+### Git initialization
+
+```bash
+git init
+```
+
+### Skeletal files
+
+Each Python project should have:
+
+- `README.rst` or `README.md` for a synopsis and documentation links
+- `LICENSE`
+- `setup.py` for packaging and installation metadata
+- `requirements.txt`, produced from `pip freeze`, for dependency installation
+- a `Makefile` for repetitive build, test, example, and documentation tasks
+- `MANIFEST.in` for distribution contents
+- `CHANGES.txt` for release notes
+- tests in `tests.py` or a dedicated directory
+- a `docs/` directory generated with `sphinx-quickstart`
+
+For a reusable package, add an example application as well. It documents intended usage and can provide functional tests. Once the skeleton exists, make the traditional first commit:
+
+> *Initial commit*
+
+From there, add, commit, and push as atomically as possible.
+
+## TDD/BDD
+
+Depending on the problem, I try to use [TDD](http://en.wikipedia.org/wiki/Test-driven_development) or [BDD](http://en.wikipedia.org/wiki/Behavior-driven_development): tests come before library code. It is not for everyone, but I have found it invaluable.
+
+My historical workflow used Vim for code and a second terminal for tests and `ipdb`. I generally used [nose](https://nose.readthedocs.org/en/latest/) and [coverage](http://pypi.python.org/pypi/coverage):
+
+```bash
+# -s prevents nose from capturing output.
+# -x stops at the first error.
+# --pdb breaks into pdb.
+nosetests . -s -x --pdb
+nosetests -s --pdb --with-coverage --cover-package=my_package
+```
+
+Consult each tool's documentation for its available configuration.
+
+## Writing the modules
+
+Conform to PEP 8 where possible. Use established naming conventions and spaces rather than tabs. I followed the 79-character limit, wrote doctests where appropriate, and used the [Python data model](http://docs.python.org/2/reference/datamodel.html) when it fit.
+
+I also kept [PEP 20](http://www.python.org/dev/peps/pep-0020/), SOLID principles, and a balance between object-oriented and functional techniques in mind. The right balance comes through experience and iteration.
+
+## Distribution via PyPI
+
+*Historical note: this section describes the pre-Python-3 packaging ecosystem.*
+
+### distutils
+
+The original standard packaging tool.
+
+### setuptools
+
+A project created to address perceived gaps in `distutils`; it became a common packaging choice for Python 2.
+
+### distribute
+
+A `setuptools` fork created by developers who felt its development was too slow.
+
+### Authoring `setup.py`
+
+A Python 2 `setup.py` generally contains project attributes, classifiers, and descriptors. A simplified example based on [sanction](https://github.com/demianbrecht/sanction):
+
+```python
+from setuptools import setup
+
+setup(
+    name='sanction',
+    keywords='python,oauth2',
+    version='0.2',
+    description='A simple, lightweight OAuth2 client',
+    author='Demian Brecht',
+    url='https://github.com/demianbrecht/sanction',
+    classifiers=[
+        'Development Status :: 5 - Production/Stable',
+        'Programming Language :: Python',
+        'Topic :: Internet :: WWW/HTTP',
+    ],
+    packages=['sanction'],
+)
+```
+
+After creating a PyPI account, the historical source-distribution upload command was:
+
+```bash
+python setup.py sdist upload
+```
+
+For closed-source or in-development work, a `requirements.txt` describing dependencies and versions may be sufficient.
+
+## Announcements
+
+"If you build it, they will come" does not work especially well in open source. GitHub and similar services are saturated with content, so market the package. My targets were `python-list@python.org`, Google+ and LinkedIn communities, and Twitter. Another option was to find recent, unanswered Stack Overflow questions that the package genuinely addressed.
+
+## Conclusion
+
+That is my historical brain dump for authoring Python packages from concept to announcement. I hope it provides some clarity among the many package structures found in the wild.

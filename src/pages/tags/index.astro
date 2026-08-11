@@ -28,7 +28,7 @@ const tags = [...counts.entries()].sort(
     ) : (
       <div class="tag-row" style="margin-top: 1.5rem">
         {tags.map(([tag, count]) => (
-          <a class="tag" href={tagUrl(tag)}>{tag} <span class="count">{count}</span></a>
+          <a class="tag" href={tagUrl(tag, import.meta.env.BASE_URL)}>{tag} <span class="count">{count}</span></a>
         ))}
       </div>
     )}

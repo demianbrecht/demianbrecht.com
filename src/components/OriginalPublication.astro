@@ -1,0 +1,17 @@
+---
+interface Props {
+  publication?: {
+    publisher: string;
+    url: string;
+  };
+  class?: string;
+}
+
+const { publication, class: className } = Astro.props;
+---
+
+{publication && (
+  <p class:list={['attribution', className]}>
+    Originally published in <a href={publication.url}>{publication.publisher}</a>.
+  </p>
+)}

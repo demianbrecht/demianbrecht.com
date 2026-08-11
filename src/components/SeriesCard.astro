@@ -1,0 +1,95 @@
+---
+import type { CollectionEntry } from 'astro:content';
+import type { SeriesMember, SeriesMetadata } from '../timeline';
+import { formatDate, isoDate, postUrl } from '../utils';
+import OriginalPublication from './OriginalPublication.astro';
+
+interface Props {
+  series: SeriesMetadata;
+  members: SeriesMember<CollectionEntry<'posts'>>[];
+}
+
+const { series, members } = Astro.props;
+const baseUrl = import.meta.env.BASE_URL;
+---
+
+<article class="series-card" data-timeline-kind="series">
+  <div class="series-heading">
+    <p class="series-label">Series</p>
+    <time datetime={isoDate(series.pubDate)}>{formatDate(series.pubDate)}</time>
+  </div>
+  <h2>{series.title}</h2>
+  <p class="series-description">{series.description}</p>
+  <ol class="series-members">
+    {members.map(({ post, part }) => (
+      <li>
+        <span class="part">Part {part}</span>
+        <div>
+          <a href={postUrl(post.id, baseUrl)}>{post.data.title}</a>
+          <OriginalPublication publication={post.data.originallyPublished} />
+        </div>
+      </li>
+    ))}
+  </ol>
+</article>
+
+<style>
+  .series-card {
+    padding: 1.25rem;
+    border: 1px solid var(--border-lit);
+    border-left: 3px solid var(--accent);
+    border-radius: var(--radius);
+    background: var(--bg-raised);
+  }
+
+  .series-heading {
+    display: flex;
+    justify-content: space-between;
+    gap: 1rem;
+    color: var(--text-fainter);
+    font-family: var(--font-mono);
+    font-size: 0.78rem;
+  }
+
+  .series-label {
+    margin: 0;
+    color: var(--accent-hover);
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+  }
+
+  h2 { margin: 0.35rem 0 0.45rem; }
+  .series-description { color: var(--text-dim); }
+
+  .series-members {
+    margin: 1.25rem 0 0;
+    padding: 0;
+    list-style: none;
+  }
+
+  .series-members li {
+    display: grid;
+    grid-template-columns: 4.5rem 1fr;
+    gap: 0.75rem;
+    padding: 0.65rem 0;
+    border-top: 1px solid var(--border);
+  }
+
+  .part {
+    color: var(--text-fainter);
+    font-family: var(--font-mono);
+    font-size: 0.78rem;
+  }
+
+  .series-members a { font-weight: 600; }
+
+  :global(.series-members .attribution) {
+    margin: 0.2rem 0 0;
+    color: var(--text-fainter);
+    font-size: 0.78rem;
+  }
+
+  @media (max-width: 34rem) {
+    .series-members li { grid-template-columns: 1fr; gap: 0.15rem; }
+  }
+</style>

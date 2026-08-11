@@ -1,0 +1,131 @@
+---
+title: 'Inner Sourcing: What''s this?'
+description: >-
+  Part one: why closed organizations repeat work, and what an inner-sourcing
+  culture can borrow from open source.
+pubDate: 2018-04-04
+tags: ['innersource', 'open-source', 'culture']
+originallyPublished:
+  publisher: Salesforce Engineering
+  url: https://medium.com/salesforce-engineering/inner-sourcing-whats-this-ef2220ae59ec
+heroImage: ../../../assets/posts/inner-sourcing-whats-this.jpeg
+heroImageAlt: 'Coworkers touching fists in collaboration'
+---
+
+*Photo by [rawpixel.com](https://unsplash.com/photos/3BK_DyRVf90) on Unsplash.*
+
+*Part 1 of 3 of a blog series about Inner Sourcing: [what it is](./), [how to go about implementing it](../inner-sourcing-the-mechanics/), and [what the benefits and potential gotchas are](../inner-sourcing-the-ups-and-downs/). In this part, we take a look at what inner sourcing is and how it compares to traditional enterprise software development.*
+
+## Something's broke. Let's fix it. Preferably without reinventing the wheel.
+
+Unfortunately, wheel reinvention is a common occurrence within software
+organizations. The difficulty of the problem is roughly relative to the size and
+number of teams within an organization. The root cause is typically a lack of
+transparency and communication between teams. Because of this, opportunities for
+collaboration on user-facing projects and what-should-be-common tools and
+libraries are stifled. As a direct result, systems are built with overlapping
+goals. Non-modular, case-specific code is written to satisfy per-project goals
+rather than sharing and leveraging generalized solutions. Everyone wants to do
+more with less. Effort redundancy and system overlap becomes the anti-vision,
+resulting in general confusion ("which system do I use?") and data duplication.
+More systems result in more full-stack maintenance. Duplicate data scattered
+amongst systems increase potential exfiltration targets. Inner sourcing aims to
+mitigate these and other problems as much as possible through open collaboration
+and communication.
+
+## Inner sourcing: What is it?
+
+Collaborative development is not a new concept. However, many organizations fail
+to execute on it for any number of reasons: project timelines, politics, and
+technical choices such as programming languages. The term "inner sourcing" was
+coined by PayPal. Its [InnerSource Commons](https://paypal.github.io/InnerSourceCommons/)
+initiative seeks to provide tools and best practices to break down barriers and
+foster open, collaborative development modeled after the open-source community.
+Open-source communities have figured out effective ways to collaborate despite
+time-zone constraints, team distribution, and a lack of in-person communication.
+Proprietary software organizations face many of these same problems regardless
+of size, so they can leverage the experiences, methods, and processes those
+communities have built over years.
+
+During my time working on open-source projects and enterprise software, I have
+noticed these philosophical differences repeatedly:
+
+### Project scope
+
+**Open-source approach:** Make as few assumptions as possible. You never know
+how your users are going to use your code. *Result:* typically higher initial
+development cost because of generalized architecture and testing, but much more
+extensible, future-proof implementations that do not require much refactoring.
+
+**Enterprise approach:** Solve one specific problem with code for that problem
+alone. *Result:* redesigned wheels and painful refactors when reusing or
+repurposing existing code.
+
+### Documentation
+
+**Open-source approach:** High-quality user and developer documentation is of
+paramount importance. *Result:* the investment makes projects much more
+approachable to newcomers and seasoned developers alike.
+
+**Enterprise approach:** Documentation is important, but deadlines preempt its
+development. *Result:* stale, subpar, haphazard, or absent documentation makes
+onboarding new hires and including external collaborators difficult.
+
+### Onboarding
+
+**Open-source approach:** Ramp-up time must be minimal to keep the barrier of
+entry for prospective contributors low. *Result:* existing documentation means
+little to no assistance is required to get up to speed.
+
+**Enterprise approach:** Onboarding documentation is a nice-to-have because new
+hires are infrequent. *Result:* new hires struggle to get up to speed, and the
+same high ramp-up time prevents contributors from other teams.
+
+### Incoming contributions
+
+**Open-source approach:** *Anyone* can contribute. *Result:* development is
+naturally open and collaborative.
+
+**Enterprise approach:** Teams expect contributions only from themselves.
+*Result:* an assumption that affects system design, work prioritization, and the
+approachability of projects.
+
+### Collaboration
+
+**Open-source approach:** Developers want to contribute to other codebases.
+*Result:* they can browse projects and contribute to anything interesting.
+
+**Enterprise approach:** Developers worry about the political implications of
+working outside their team's repository. *Result:* they tend not to branch out
+even when they have useful domain expertise to share.
+
+### Deployment
+
+**Open-source approach:** Anyone should be able to execute the test suite with
+few barriers, and deployments should be fully automated. *Result:* interested
+people can get the source, run tests, and deploy through a button or CLI; the
+barrier to meaningful contribution is nearly nonexistent.
+
+**Enterprise approach:** A team assumes nobody else will contribute, so a
+runbook and an onboarding mentor are acceptable prerequisites. *Result:* only
+the team understands its development environment, raising the initial barrier
+and discouraging outside contributors.
+
+With these differing philosophies, we end up with generally sub-optimal results:
+
+- Teams that are effectively black boxes to one another
+- Redundant effort and system overlap
+- Code that is difficult to repurpose, even by the team that wrote it
+- Stale documentation
+- High ramp-up times for new hires and collaborative development
+- Inconsistent coding standards, tools, utilities, libraries, and build pipelines
+- Inadequate cross-pollination
+
+*We all know these are not positive for organizations, so let's do something to change them.*
+
+As organizations build a collaborative environment across team boundaries, they
+can avoid many of these outcomes by applying the communication practices,
+development processes, and best practices used by open-source communities.
+
+*In the [next post of this series](../inner-sourcing-the-mechanics/), we'll look
+at tools and practices that can help build an inner-sourcing culture.*

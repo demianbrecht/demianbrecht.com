@@ -24,9 +24,11 @@ $ make new-post TITLE="Notes on retry budgets"
 created src/content/posts/notes-on-retry-budgets.mdx
 ```
 
-Posts live in `src/content/posts/` as `.mdx` (or `.md`). The filename is the URL
-slug. Frontmatter is schema-validated at build time by `src/content.config.ts`,
-so a typo fails the build instead of shipping a broken page:
+Posts live in `src/content/posts/` or nested directories as `.mdx` (or `.md`).
+The filename is always the flat URL slug, so basenames must be unique across the
+entire tree. Frontmatter is schema-validated at build time by
+`src/content.config.ts`, so a typo fails the build instead of shipping a broken
+page:
 
 | Field | Required | Notes |
 | --- | --- | --- |
@@ -36,10 +38,34 @@ so a typo fails the build instead of shipping a broken page:
 | `updatedDate` | no | shown in the post meta line |
 | `tags` | no | array of strings; defaults to `[]` |
 | `draft` | no | defaults to `false` |
+| `archived` | no | defaults to `false`; excludes a published post from the homepage but retains it in `/archive` |
+| `originallyPublished` | no | `{ publisher, url }` attribution for an earlier publication |
 
 New posts are scaffolded with `draft: true`. Drafts render in `make run` but are
 excluded from production builds, the RSS feed, and the sitemap — remove the flag
 or set it to `false` to publish.
+
+Archived posts remain published, including in the RSS feed and sitemap, but are
+omitted from the homepage timeline and remain available through `/archive`.
+
+### Series
+
+Group related posts in a nested directory and add an `index.yaml` beside them.
+The `posts` list declares the part order; each post keeps its flat
+`/posts/<filename>` route:
+
+```yaml
+title: Retry Budgets
+description: A three-part guide to practical retry policies.
+pubDate: 2026-08-08
+posts:
+  - retry-budgets-introduction
+  - retry-budgets-backoff
+  - retry-budgets-operations
+```
+
+Series metadata requires `title`, `description`, `pubDate`, and at least one
+post reference. Draft visibility is still controlled by each member post.
 
 ### Components
 
@@ -59,20 +85,24 @@ $ make build
 ```
 
 `Callout` takes `type="info|warn|danger|success"` and an optional `title`.
-The post `writing-posts.mdx` renders every component as a live reference.
+`OriginalPublication` and `SeriesCard` are site-rendering components rather than
+author-inserted MDX components. The post `writing-posts.mdx` renders the
+author-facing components as a live reference.
 
 ## Structure
 
 ```
 src/
-  content/posts/     posts (.mdx)
+  content/posts/     posts (.mdx/.md) and series metadata (index.yaml)
   content.config.ts  frontmatter schema
-  components/        Header, Footer, PostCard, Callout, Terminal, BaseHead
+  components/        Header, Footer, PostCard, SeriesCard, OriginalPublication,
+                     Callout, Terminal, BaseHead
   layouts/           BaseLayout, PostLayout
   pages/             routes — index, archive, tags, about, 404, rss.xml
   styles/global.css  the entire theme
   consts.ts          title, tagline, nav links
   utils.ts           URL/date/tag helpers
+  timeline.ts        homepage series assembly and post navigation ordering
 scripts/new-post.sh  post scaffold
 ```
 

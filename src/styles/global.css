@@ -346,6 +346,7 @@ main {
 .post-card > a.post-title-link:hover { text-decoration: none; }
 .post-card > a.post-title-link:hover h2 { color: var(--accent-hover); }
 .post-card p { margin: 0 0 0.75rem; color: var(--text-dim); }
+.post-card .attribution { margin: 0.75rem 0 0; font-size: 0.8rem; }
 
 .post-meta {
   display: flex;

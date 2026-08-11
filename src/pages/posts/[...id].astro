@@ -1,23 +1,73 @@
 ---
 import type { GetStaticPaths } from 'astro';
-import { getCollection, render } from 'astro:content';
+import { getCollection, render, type CollectionEntry } from 'astro:content';
 import PostLayout from '../../layouts/PostLayout.astro';
-import { isVisible, byNewest } from '../../utils';
+import { isVisible } from '../../utils';
+import {
+  buildTimeline,
+  orderPostsForNavigation,
+  seriesMetadata,
+} from '../../timeline';
+
+interface SeriesPresentation {
+  id: string;
+  title: string;
+  part: number;
+  total: number;
+}
 
 export const getStaticPaths: GetStaticPaths = async () => {
-  const posts = (await getCollection('posts', isVisible)).sort(byNewest);
+  const visiblePosts = await getCollection('posts', isVisible);
+  const seriesEntries = (await getCollection('series')).map(seriesMetadata);
+  const posts = orderPostsForNavigation(visiblePosts, seriesEntries);
+  const timeline = buildTimeline(posts, seriesEntries);
+  const seriesByPost = new Map<string, SeriesPresentation>();
+
+  for (const item of timeline) {
+    if (item.type !== 'series') continue;
+    item.members.forEach(({ post, part }) => {
+      seriesByPost.set(post.id, {
+        id: item.series.id,
+        title: item.series.title,
+        part,
+        total: item.series.posts.length,
+      });
+    });
+  }
 
   // Sorted newest-first: index+1 is older, index-1 is newer.
-  return posts.map((post, i) => ({
-    params: { id: post.id },
-    props: { post, prev: posts[i + 1], next: posts[i - 1] },
-  }));
+  return posts.map((post, i) => {
+    const currentSeries = seriesByPost.get(post.id);
+    const prevSeries = posts[i + 1] ? seriesByPost.get(posts[i + 1].id) : undefined;
+    const nextSeries = posts[i - 1] ? seriesByPost.get(posts[i - 1].id) : undefined;
+
+    return {
+      params: { id: post.id },
+      props: {
+        post,
+        prev: posts[i + 1],
+        next: posts[i - 1],
+        series: currentSeries,
+        prevLabel: currentSeries?.id === prevSeries?.id ? 'next part' : 'older',
+        nextLabel: currentSeries?.id === nextSeries?.id ? 'previous part' : 'newer',
+      },
+    };
+  });
 };
 
-const { post, prev, next } = Astro.props;
+interface Props {
+  post: CollectionEntry<'posts'>;
+  prev?: CollectionEntry<'posts'>;
+  next?: CollectionEntry<'posts'>;
+  series?: SeriesPresentation;
+  prevLabel: string;
+  nextLabel: string;
+}
+
+const { post, prev, next, series, prevLabel, nextLabel } = Astro.props as Props;
 const { Content } = await render(post);
 ---
 
-<PostLayout {post} {prev} {next}>
+<PostLayout {post} {prev} {next} {series} {prevLabel} {nextLabel}>
   <Content />
 </PostLayout>

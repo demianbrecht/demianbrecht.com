@@ -19,7 +19,7 @@ export const GET: APIRoute = async (context) => {
       pubDate: post.data.pubDate,
       categories: post.data.tags,
       // postUrl() includes the base path; rss() resolves it against `site`.
-      link: postUrl(post.id),
+      link: postUrl(post.id, import.meta.env.BASE_URL),
     })),
     customData: '<language>en-us</language>',
   });

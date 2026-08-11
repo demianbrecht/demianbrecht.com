@@ -2,10 +2,14 @@
 import { getCollection } from 'astro:content';
 import BaseLayout from '../layouts/BaseLayout.astro';
 import PostCard from '../components/PostCard.astro';
+import SeriesCard from '../components/SeriesCard.astro';
 import { SITE_TITLE, SITE_TAGLINE } from '../consts';
-import { isVisible, byNewest } from '../utils';
+import { isCurrent } from '../utils';
+import { buildTimeline, seriesMetadata } from '../timeline';
 
-const posts = (await getCollection('posts', isVisible)).sort(byNewest);
+const posts = await getCollection('posts', isCurrent);
+const series = (await getCollection('series')).map(seriesMetadata);
+const timeline = buildTimeline(posts, series);
 ---
 
 <BaseLayout>
@@ -15,14 +19,16 @@ const posts = (await getCollection('posts', isVisible)).sort(byNewest);
       <p class="tagline">{SITE_TAGLINE}</p>
     </section>
 
-    {posts.length === 0 ? (
-      <p class="empty-state">
-        No posts yet.
-      </p>
+    {timeline.length === 0 ? (
+      <p class="empty-state">No posts yet.</p>
     ) : (
       <ul class="post-list">
-        {posts.map((post) => (
-          <li><PostCard {post} /></li>
+        {timeline.map((item) => (
+          <li>
+            {item.type === 'post'
+              ? <PostCard post={item.post} />
+              : <SeriesCard series={item.series} members={item.members} />}
+          </li>
         ))}
       </ul>
     )}

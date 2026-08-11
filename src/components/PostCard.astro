@@ -1,6 +1,7 @@
 ---
 import type { CollectionEntry } from 'astro:content';
 import { postUrl, tagUrl, formatDate, isoDate, readingTime } from '../utils';
+import OriginalPublication from './OriginalPublication.astro';
 
 interface Props {
   post: CollectionEntry<'posts'>;
@@ -8,6 +9,7 @@ interface Props {
 
 const { post } = Astro.props;
 const { title, description, pubDate, tags, draft } = post.data;
+const baseUrl = import.meta.env.BASE_URL;
 ---
 
 <article class="post-card">
@@ -18,7 +20,7 @@ const { title, description, pubDate, tags, draft } = post.data;
     {draft && (<><span class="sep">/</span><span style="color: var(--status-warn)">draft</span></>)}
   </div>
 
-  <a class="post-title-link" href={postUrl(post.id)}>
+  <a class="post-title-link" href={postUrl(post.id, baseUrl)}>
     <h2>{title}</h2>
   </a>
 
@@ -26,7 +28,9 @@ const { title, description, pubDate, tags, draft } = post.data;
 
   {tags.length > 0 && (
     <div class="tag-row">
-      {tags.map((tag) => <a class="tag" href={tagUrl(tag)}>{tag}</a>)}
+      {tags.map((tag) => <a class="tag" href={tagUrl(tag, baseUrl)}>{tag}</a>)}
     </div>
   )}
+
+  <OriginalPublication publication={post.data.originallyPublished} />
 </article>
