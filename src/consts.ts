@@ -11,3 +11,18 @@ export const NAV_LINKS = [
   { href: '/tags', label: 'Tags' },
   { href: '/about', label: 'About' },
 ];
+
+/**
+ * Giscus (GitHub Discussions-backed comments) config. Rendered on every post
+ * when fully configured; the component renders nothing if any field is blank.
+ * IDs are public-safe (they appear in the client bundle by design).
+ */
+export const GISCUS = {
+  repo: 'demianbrecht/www',
+  repoId: 'R_kgDOQ2Y_Gw',
+  category: 'Announcements',
+  categoryId: 'DIC_kwDOQ2Y_G84DDKZC',
+  mapping: 'pathname',
+  theme: 'dark',
+  lang: 'en',
+} as const;

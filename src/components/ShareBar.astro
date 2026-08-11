@@ -1,0 +1,104 @@
+---
+import { shareLinks } from '../share';
+
+interface Props {
+  /** Absolute canonical URL of the article. */
+  url: string;
+  /** Article title, used as share text. */
+  title: string;
+}
+
+const { url, title } = Astro.props;
+const links = shareLinks(url, title);
+---
+
+<div class="share-bar" data-share-url={url}>
+  <span class="share-label">Share</span>
+  <ul class="share-links">
+    {links.map((link) =>
+      link.href ? (
+        <li>
+          <a
+            class="share-link"
+            href={link.href}
+            target="_blank"
+            rel="noopener noreferrer"
+          >
+            {link.label}
+          </a>
+        </li>
+      ) : (
+        <li>
+          <button class="share-link" type="button" data-copy-link>
+            {link.label}
+          </button>
+        </li>
+      ),
+    )}
+  </ul>
+</div>
+
+<script is:inline>
+  document.querySelectorAll('.share-bar').forEach((bar) => {
+    const url = bar.getAttribute('data-share-url');
+    const button = bar.querySelector('[data-copy-link]');
+    if (!url || !button) return;
+
+    button.addEventListener('click', async () => {
+      const original = button.textContent;
+      try {
+        await navigator.clipboard.writeText(url);
+        button.textContent = 'Copied!';
+      } catch {
+        button.textContent = 'Copy failed';
+      }
+      setTimeout(() => {
+        button.textContent = original;
+      }, 2000);
+    });
+  });
+</script>
+
+<style>
+  .share-bar {
+    display: flex;
+    align-items: baseline;
+    flex-wrap: wrap;
+    gap: 0.5rem 1rem;
+    margin: 1.5rem 0 0;
+  }
+
+  .share-label {
+    font-family: var(--font-mono);
+    font-size: 0.8rem;
+    color: var(--text-dim);
+  }
+
+  .share-links {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.75rem;
+    margin: 0;
+    padding: 0;
+    list-style: none;
+  }
+
+  .share-link {
+    font-family: var(--font-mono);
+    font-size: 0.8rem;
+    color: var(--text-dim);
+    background: none;
+    border: none;
+    padding: 0;
+    cursor: pointer;
+    text-decoration: underline;
+    text-decoration-color: var(--border-lit);
+    text-underline-offset: 3px;
+    transition: color 0.15s ease;
+  }
+
+  .share-link:hover,
+  .share-link:focus-visible {
+    color: var(--accent-hover);
+  }
+</style>

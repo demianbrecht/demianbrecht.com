@@ -1,0 +1,50 @@
+---
+import { GISCUS } from '../consts';
+import { isGiscusConfigured } from '../giscus';
+
+// Renders nothing until giscus is fully configured, so a half-filled config
+// never ships an empty/broken comment box.
+const configured = isGiscusConfigured();
+---
+
+{configured && (
+  <section class="comments" aria-label="Comments">
+    <h2 class="comments-heading">Comments</h2>
+    <script
+      is:inline
+      src="https://giscus.app/client.js"
+      data-repo={GISCUS.repo}
+      data-repo-id={GISCUS.repoId}
+      data-category={GISCUS.category}
+      data-category-id={GISCUS.categoryId}
+      data-mapping={GISCUS.mapping}
+      data-strict="1"
+      data-reactions-enabled="1"
+      data-emit-metadata="0"
+      data-input-position="top"
+      data-theme={GISCUS.theme}
+      data-lang={GISCUS.lang}
+      data-loading="lazy"
+      crossorigin="anonymous"
+      async
+    ></script>
+  </section>
+)}
+
+<style>
+  .comments {
+    margin-top: 3rem;
+    padding-top: 2rem;
+    border-top: 1px solid var(--border);
+  }
+
+  .comments-heading {
+    margin: 0 0 1.25rem;
+    font-family: var(--font-mono);
+    font-size: 0.9rem;
+    font-weight: 600;
+    text-transform: lowercase;
+    letter-spacing: 0.02em;
+    color: var(--text-dim);
+  }
+</style>
