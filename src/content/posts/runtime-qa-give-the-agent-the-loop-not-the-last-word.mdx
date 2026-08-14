@@ -1,0 +1,509 @@
+---
+title: 'Runtime QA: Give the Agent the Loop, Not the Last Word'
+description: >-
+  Runtime QA is judgment from end to end, so let the agent own the investigative
+  loop. Separate its judgment from reviewable mechanics, stop for the decisions
+  that carry consequences, and leave the last word with a person.
+pubDate: 2026-08-13
+tags: ['ai-engineering', 'quality-assurance', 'agentic-workflows', 'runtime-testing', 'software-architecture']
+draft: false
+heroImage: ../../assets/posts/runtime-qa-give-the-agent-the-loop-not-the-last-word.png
+heroImageAlt: 'An agent runs a break, observe, restore, and analyze loop while a human makes the final call'
+---
+
+It's four in the afternoon and I'm hand-stopping a container for the ninth time.
+The stack came up half-broken, I've curled the same endpoint until my shell
+history is nothing but `curl`, and I'm squinting at a wall of logs trying to
+decide whether the thing I just saw was the bug, a local quirk, or a container
+still running last week's code. Tomorrow the author pushes seven more commits and I
+get to do all of it again. This is runtime QA, and I have spent a genuinely
+embarrassing number of afternoons exactly here.
+
+Here's the thing that finally bothered me enough to do something about it: almost
+none of that was work only I could do. Understand the change, assemble the
+environment, induce failures, watch the signals, restore, repeat. Much of it is
+necessary. Very little of it needs *me*, specifically, to turn the crank.
+
+That gap is the whole opportunity. I've argued before that the real question is
+never simply "model or code in charge" but
+[matching the harness to the problem](/posts/the-division-of-the-local-harnesses),
+and [being deliberate about where the model earns its
+cost](/posts/stop-asking-llms-to-be-deterministic). Runtime QA turns out to be a
+problem that genuinely wants the model in charge of a bounded investigative
+loop, which makes it a good place to be precise about what "in charge" should
+and shouldn't mean.
+
+## First, which QA?
+
+Teams use *QA* to mean different things. For some it's static review: reading a
+pull request and judging whether the code is correct, maintainable, and
+adequately tested. For others it's runtime verification: operating the running
+service in a representative environment, inducing real failures, and comparing
+what it does against what the change claims it should do. The trigger should be
+black-box wherever possible. Designing the test still requires reading the diff,
+and explaining a strange result may require reading the exact library code that
+ran inside the container.
+
+Both matter, but they answer different questions and need different machinery.
+Static review asks whether the code looks right as written. Runtime QA asks
+whether the running system behaves as claimed. **This post is about the second
+one.** They belong side by side; neither subsumes the other, and I'll come back
+to why.
+
+## The loop, and where the day actually goes
+
+Written out, that afternoon has a shape:
+
+1. Read the change. Form a theory of what could break.
+2. Bring up a local stack. Discover it's half-up.
+3. Hand-stop a dependency. Hand-hit an endpoint. Squint at container logs.
+4. Decide whether what you saw was the bug, a local-environment quirk, or a stale
+   container running last week's code.
+5. Write a summary in a chat channel that's gone in a week.
+6. Repeat all of it from scratch when the author pushes seven more commits.
+
+Steps 2 through 4 and 6 are where the afternoon goes, and none of them are the
+part only an engineer can do. They're also, not coincidentally, where the
+mistakes live: an un-restarted container silently tests the old code, a `0` from a
+broken log filter reads as "clean" (zero being indistinguishable from healthy, a
+detail that will come back to bite us later), and nobody can reproduce last week's
+run.
+
+So the question isn't "can an agent do QA?" It's sharper than that:
+
+**How do you move people out of the repetitive investigative loop without moving
+them out of the decisions that carry consequences?**
+
+## The division of labour
+
+The answer is *not* to take the model out of the driver's seat. Read a diff, name
+what the change is observable through, decide which observation would reduce
+uncertainty, adapt when the environment contradicts the plan. That's
+judgment-dominant work, so the model *should* own the investigative loop here.
+The trick is separating decisions that gather evidence from decisions that
+authorize consequences.
+
+**The model runs the investigation.** It reads the diff, models what the change
+does, proposes what that change is observable *through*, shapes the test, drives
+the harness, and interprets each deviation as it happens. Letting it adapt mid-run
+is the feature, not a risk to engineer away. It can stop, gather more evidence,
+or ask before the next destructive phase. These outputs are valuable because
+they're reviewable, not because they're presumed correct.
+
+**A repeatable harness does the breaking and the watching.** Not the loop,
+the *building blocks* the loop calls: a lever that stops a dependency and starts
+it again, an observer that reads one surface exactly, a poller that reports how
+many seconds a signal took to flip. The model authors that harness alongside the
+plan. Before a new or changed harness runs for the first time, the skill summarizes
+what it will do and stops for confirmation. During execution, the model drives
+named subcommands rather than reimplementing the mechanics inline. When a harness
+bug appears, that is a finding to fix and record, not something to wave away
+because the shell happens to be deterministic.
+
+**The human keeps the consequential decisions.** In practice, the high-value
+ones are a short list:
+
+- **Does the model of the change make sense?** The test states, in prose, what the
+  change does and which signal gates which behaviour. A wrong model produces
+  confident, false findings. Reading the plan before the first run is the
+  highest-value human review in the process.
+- **Should this harness run at all?** Before the first execution of a new or
+  changed harness, the runner summarizes the shell and asks. Individual plans add
+  more gates around heavier steps such as checking out another commit, rebuilding
+  images, or changing infrastructure config. Ordinary inject/restore cycles can
+  then run inside that approved scope.
+- **Is this finding real, or is it the environment?** The result preserves the
+  agent's disposition and mechanism. A human with production context gets the
+  last word.
+- **What ships?** Approving the change, posting results, moving a tracker item.
+  All outward-facing, all human. The automation stops at the result file by
+  design; nothing downstream of it fires on its own.
+
+Everything else is either AI-assisted investigation or a turn of a repeatable
+crank, and neither should consume a senior engineer's afternoon.
+
+## The artifact is the point
+
+Concretely, the shape I've landed on is two skills and three artifacts. One skill
+turns a change into a durable test plan and a plan-specific harness. Another reads
+the plan and drives that harness against the environment. At the end it writes a
+timestamped result. The specifics of *how* you package those matter far less than
+one design decision underneath them:
+
+**Separate the judgment from the mechanics, physically.**
+
+- One file holds *judgment*: what the change does, what signal proves it, what's
+  out of scope and why, where to stop and ask a human. Prose a reviewer can argue
+  with, and prose the model reads at run time to decide what to do next.
+- A separate script holds *deterministic mechanics*: the pollers, the levers that
+  break things, and the classification of what came back. Code, not prose,
+  because "wait until this field flips, and report how many seconds it took" has
+  to mean the same thing each time it runs.
+- A timestamped Markdown result holds *evidence*: the target revision, expected
+  versus observed behaviour, measured latencies, findings, skipped tests, and
+  whether the stack was green at the end. It is a durable report, not a machine
+  certification.
+
+This buys you the thing a chat transcript never will. Re-runs are cheap to start
+and much easier to compare: the same entrypoint, four days and seven commits
+later, produces a new result beside the last one and records any plan or harness
+changes needed along the way. It isn't perfect reproducibility; the plan, shell,
+images, and local state can all move. It is a durable narrative of what was run,
+what changed, and what the agent concluded. Findings arrive with a mechanism
+attached, not a vibe: a named line in a named version of a dependency, with the
+call chain that reaches it, rather than "the logs looked noisy."
+
+## The environment sets the ceiling
+
+An AI-driven QA cycle is bounded by what the agent can actually *break* and
+actually *see*. Everything upstream of that boundary is wasted effort. So the
+unglamorous investment, the local environment you test against, is what
+determines whether any of this is worth doing.
+
+The instinct when building a local stack is to stub whatever is annoying. For QA,
+that instinct is often backwards: **the annoying dependencies are usually where
+the interesting bugs are.**
+If production runs a real broker with real mutual TLS, terminate real TLS locally.
+If production traffic traverses an egress proxy, route through it locally instead
+of exempting yourself because it's simpler. Client TLS config, handshake failure
+paths, the proxy's `CONNECT` path: none of that executes in a stack that mocks it
+away, and all of it is a genuine source of production incidents.
+
+One of the highest-value choices is this: **preserve the process boundaries that
+matter.** Separate processes expose independent lifecycle, identity, and state
+ownership assumptions a single-process rig hides. Give the API and its background
+scheduler separate identities and log streams when production does. You will not
+reproduce every production topology locally, but collapsing everything guarantees
+you will never see the differences.
+
+## The gaps are first-class data
+
+Your local stack will never be production. It'll have missing mocks, credentials
+that only work against staging, and behaviour keyed on per-instance identity a
+container can't reproduce. **These gaps are the main source of false findings**,
+so name them explicitly, in writing, before any test runs.
+
+Every plan I write carries a preconditions section whose only job is to pre-empt a
+wrong conclusion. If some health sub-check always fails locally because there's no
+mock for one dependency, the plan says so, and asserts on something else. A
+failing check at baseline is then *expected, not a finding.* Writing that down
+first is what converts "the endpoint is broken!" from a false alarm into a known
+precondition.
+
+The same section can rule out a *wrong way to break something*, which is subtler
+and more valuable. Stopping a proxy container entirely might look like the obvious
+way to test a proxy-failure path, but if it makes the client's TCP connect fail
+*before* the changed code even runs, it's testing a different path the change
+never touched. That's hard-won environmental expertise, captured in a file, and
+applied automatically on every future run. Accumulating those is most of the
+long-term payoff.
+
+## What it catches that the other stages don't
+
+Two shapes of problem convinced me this earns its keep.
+
+The first is the **cross-process interaction**. A refactor can look correct in
+review and pass its unit tests while a background writer in one process masks a
+local override in another. In my rig, that turned out to be an environment detail
+and a production assumption worth confirming, not automatically a product defect.
+The harness made the interaction visible and forced the distinction.
+
+The second is **depth outside your team's expertise**. Picture a fix for a
+production log storm caused by a failure escaping a third-party client's intended
+error boundary into a retry loop. Validating it means holding proxy behaviour,
+the client's reconnect state machine, and structured logging semantics at once,
+none of which is your own product code. An agent can cheaply traverse those
+sources, propose where the failure escaped, then test that explanation against the
+real dependency and the library version inside the container. Unit tests often
+won't reproduce that seam unless it has been deliberately modelled.
+
+## A minimal harness
+
+All of that stays abstract until you see the pieces sitting next to each other,
+so here's the smallest version that still makes the point. Taken together, what
+follows is not a one-off script; it's a small, purpose-built harness you own.
+Start with a toy order service backed by a compose file that splits the processes
+production would split.
+
+Note the packaging up front, because it's the whole point: in my setup, one Claude
+slash command authors the artifacts and another runs them. They're prose the model
+reads and interprets, which is what lets it react to whatever the run actually
+produces rather than following a fixed script off a cliff.
+
+```yaml
+# docker-compose.yml: the environment
+services:
+  api:
+    build: ./order-service
+    environment:
+      STATE_URL: redis://state:6379
+    ports: ['8080:8080']
+    depends_on: [state]
+
+  # A separate process, exactly as production runs it. The process boundary is
+  # part of the behaviour this test is meant to exercise.
+  refresher:
+    build: ./order-service
+    command: python -m order_service.refresher
+    environment:
+      DATABASE_URL: postgres://orders:orders@database/orders
+      STATE_URL: redis://state:6379
+    depends_on: [database, state]
+
+  database:
+    image: postgres:17
+    environment:
+      POSTGRES_DB: orders
+      POSTGRES_USER: orders
+      POSTGRES_PASSWORD: orders
+
+  state:
+    image: redis:7
+```
+
+The `refresher` is the whole reason this environment is worth anything. It writes
+database health into shared state the `api` reads. That makes the process boundary
+part of the test: stop the database and the scheduler has to observe the failure,
+publish it, and let a different process gate readiness on it. It also means a
+per-instance override on the `api` can be overwritten by the separately running
+writer. Collapse the two and both interactions disappear from the local rig.
+
+The authoring instructions point the model at a pull request, walk it through the
+diff, and have it write a plan and harness into a directory for that change. The
+running instructions locate that plan later, read it, and drive it against the
+stack. Authoring produces the first two artifacts, and both are worth a human
+read before the first run:
+
+```console
+> /runtime-qa:create https://example.test/order-service/pull/42
+Read the diff. Wrote plan.md + health-test.sh. Review before running.
+```
+
+The plan is prose a human argues with. The harness holds the deterministic
+mechanics. Keeping them in separate files is the load-bearing decision from
+earlier, made physical. Here's a compact version of what the model produced:
+
+```markdown
+<!-- plan.md: the judgment -->
+## Change under test
+Readiness must go unhealthy within one refresh interval (~5s) of the database
+becoming unreachable, and recover within one interval of it returning.
+
+## Preconditions
+- The stack must be green before injection; otherwise detection timing is meaningless.
+- Stopping `api` is the WRONG lever: it fails before the readiness path runs.
+
+## Gate matrix
+| Lever | Readiness | Liveness | Timing |
+|---|---:|---:|---|
+| database stopped | 503 | 200 | within ~5s |
+| database restored | 200 | 200 | within ~5s |
+```
+
+```bash
+#!/usr/bin/env bash
+# health-test.sh: plan-specific mechanics. Judgment stays in plan.md.
+set -uo pipefail
+
+code() {
+  local got
+  if ! got="$(curl -sS -o /dev/null -w '%{http_code}' \
+    --connect-timeout 2 --max-time 5 http://localhost:8080/"$1")"; then
+    echo "transport error reading $1" >&2
+    return 2
+  fi
+  echo "$got"
+}
+
+await_code() {
+  local path=$1 want=$2 timeout=$3 start=$SECONDS got
+  while true; do
+    got="$(code "$path")" || return 2
+    [[ "$got" == "$want" ]] && break
+    (( SECONDS - start < timeout )) || return 1
+    sleep 1
+  done
+  echo "$path reached $want after $((SECONDS - start))s"
+}
+
+preflight() {
+  local service got
+  for service in api refresher database state; do
+    docker compose ps --status running --services | grep -qx "$service" || return 1
+  done
+  got="$(code readyz)" || return 2
+  [[ "$got" == 200 ]] || return 1
+  got="$(code livez)" || return 2
+  [[ "$got" == 200 ]]
+}
+
+case "${1:-}" in
+  preflight)   preflight ;;
+  inject)      docker compose stop database ;;
+  restore)     docker compose start database ;;
+  restore-all) docker compose start database ;;
+  await)       await_code "$2" "$3" "$4" ;;
+  *)           echo "unknown command" >&2; exit 2 ;;
+esac
+```
+
+That script is not magically trustworthy because it is shell. It is generated,
+approved after a summary, and sometimes wrong. In practice I've found wrong process names, wrong
+log assumptions, and observers pointed at a surface that could never contain the
+thing they were looking for. The useful property is that each mistake lands in a
+small artifact you can inspect, fix, rerun, and keep, rather than disappearing
+inside the model's next turn.
+
+Naming the surface (`/readyz`, not the body), spotting the wrong lever (stopping
+`api`), and encoding the timing (~5s, not a bare `sleep`) is the judgment the
+model applied while authoring. Before first execution, the runner summarizes the
+plan and the shell it will run. It then drives named harness commands, but the
+loop is the model's: it reads each result, interprets it against the matrix, and
+decides whether to continue, gather more evidence, or stop.
+
+```console
+> /runtime-qa:run change-42
+preflight → API, refresher, database, and state store running; /readyz=200; /livez=200
+new harness: stops database, polls readiness/liveness, then restores database
+> approve
+inject    → health-test.sh inject     → database stopped
+await     → health-test.sh await readyz 503 10 → reached 503 after 4s
+observe   → health-test.sh await livez 200 2   → reached 200 after 0s
+restore   → health-test.sh restore    → database started
+await     → health-test.sh await readyz 200 10 → reached 200 after 3s
+teardown  → health-test.sh restore-all; health-test.sh preflight → baseline green
+result    → result-2026-08-13-164209.md
+PASS: readiness gated on database; liveness did not; stack green at teardown.
+```
+
+That reads like a fixed sequence, and on a clean run it is. The value shows up
+when it isn't. I've watched the agent stop because the baseline was already sick,
+discover that a long-running process still held yesterday's module even though
+the file on disk was current, and replace an invalid observation with one that
+actually reached the runtime surface. A fixed pipeline would need those branches
+written in advance. Here the agent can investigate them as they appear, and the
+result records what changed.
+
+That does not turn procedure into a guarantee. The run skill says to restore all
+levers and re-run preflight even after a failure, and the result records whether
+the stack ended green. That discipline has worked well in normal runs. It will
+not save you if the agent process dies between `inject` and `restore`; some plans
+also leave the tested branch checked out or an image built from it. Those are
+exactly the reasons new harnesses get an approval gate, heavier phases add explicit gates,
+and teardown state belongs in the artifact rather than being assumed.
+
+The result is timestamped Markdown, not a signed certificate. It records the
+target revision when knowable, expected versus observed behaviour, latencies,
+findings, skipped tests, investigation notes, and the final state of the stack.
+It can also record harness corrections made during the run. That is enough to
+make the work durable and the next run meaningfully comparable without pretending
+the report is immutable or the verdict came from anything other than judgment.
+
+Taken together, that's a small, purpose-built AI harness: a faithful environment,
+an agent-owned investigation, inspectable mechanics, and a result that survives
+the conversation. The model owns the loop. A person still approves the parts
+that can leave a mark and gets the last word on what the findings mean.
+
+## Failure modes to design against
+
+Every one of these is a way an AI-driven QA cycle produces a confident, wrong
+answer. They're worth internalizing because they're not hypothetical; they're
+what actually goes wrong.
+
+- **False green from a broken observer.** The worst failure, and the `0`-is-clean
+  detail I promised would come back. A log classifier silently bucketed every line
+  to zero because it choked on a line prefix, and printed `WARN=0 ... baseline GREEN`
+  while real warnings sat right there in the window. It didn't look like a bug; it
+  looked like health. *Never let an observation primitive fail open to a healthy
+  value.* Zero is indistinguishable from healthy, which is precisely why it lies
+  so convincingly. Design counters so a classifier failure is *visible*, a total
+  that disagrees with the sum of its parts, rather than silent.
+- **The wrong lever.** Breaking something adjacent to the thing that changed.
+  Guard by requiring the plan to state *why* a given lever reaches the changed
+  code, and to name the plausible-but-wrong lever explicitly.
+- **The stale container.** The most common way a local pass lies: the file on disk
+  is new, the running process imported the old module, or one service runs a fresh
+  bind mount while a worker still runs code baked into an old image. Compare the
+  branch, the source inside the container, and a live runtime marker before
+  trusting a single line of output.
+- **The confident-but-wrong model.** Guard with a rule that every claim about the
+  change cites a specific line, plus the human read of the plan, plus a runtime
+  willingness to conclude "the plan was wrong, the code is fine."
+- **The over-tight assertion.** An assertion worded more strictly than the
+  property you actually care about will raise false alarms. State the *intent*
+  alongside the literal check so the agent can report both what happened and
+  whether the property survived. If those disagree, call out the plan defect;
+  don't quietly erase the literal result.
+- **The collapsed error.** An HTTP 503 is evidence. A connection failure, timeout,
+  malformed response, and broken observer are not four spellings of 503. Make
+  transport failure visible and bound every request. The harness template that
+  started this work returned `000` for failed requests; that was useful for
+  polling, but much too easy to mistake for an application result.
+- **The unreviewed harness.** The shell is executable code with Docker access,
+  often authored specifically for the change. Review the exact harness revision
+  before the first run, keep mutation in named subcommands, reject paths that
+  escape the plan directory, and stop if the plan asks for arbitrary inline shell.
+  This is risk reduction, not a sandbox.
+
+There's also a security dimension, and it's sharper precisely *because* the model
+owns the loop. A plan and shell harness authored in a repository are a
+prompt-injection and code-execution surface pointed straight at an agent with a
+host shell. Confining the harness to the plan's `scripts/` directory, invoking
+only its named subcommands, refusing secret access, and asking before the first
+execution of new shell are worthwhile guardrails. They are not a hard capability
+boundary: once selected, that shell still has the agent's host and Docker access.
+The honest description is that this workflow assumes a trusted local checkout and
+a person willing to trust the exact harness revision after reading what it will
+do. I would not point the same arrangement at arbitrary third-party pull requests
+and call it safe.
+
+## What this does not replace
+
+I want to be precise about scope, because the failure mode of any post like this
+is someone reading it as "AI can do all your testing now."
+
+- **Unit tests.** Faster, white-box, and the right home for branches the stack
+  can't induce. This complements them; it doesn't compete.
+- **Static code review.** Runtime verification models *behaviour*; it never reads
+  the change comprehensively for maintainability, design quality, and static
+  defects. Run both; they fail in different directions.
+- **Cluster and production validation.** Per-instance and true multi-node
+  behaviour needs real orchestration, and no amount of local rigour reproduces
+  production scale. Say so, and record the gap as unverified where you can't
+  measure honestly.
+- **Human judgment on release.** Every outward-facing step stays gated on a
+  person, deliberately, not for lack of tooling.
+
+## Where this lands
+
+Reading a diff, naming what a change is observable through, deciding which piece
+of evidence to gather next, and recognizing when the environment has invalidated
+the plan: that's judgment-heavy work, and it's why the model belongs in the loop
+here rather than being called from the side of one. Polling a signal, measuring
+latency, and invoking a named mutation are harness responsibilities. Interpreting
+what came back is deliberately still model work. Deciding whether to accept that
+interpretation and whether the change ships stays human.
+
+That's what "give the agent the loop" means in practice. Let it form the theory,
+drive the approved harness, and follow the evidence when the run gets weird. Stop
+for the steps that can leave the environment changed. Keep the result as an
+artifact a person can inspect, and keep the last word on the finding and the
+release with that person.
+
+None of which is to say this is *the* shape, or that it'll map cleanly onto your
+stack. It's the one that fit my problem, on my afternoons, after enough of them
+went the way the one at the top of this post did. Yours may draw the lines
+somewhere else, and I'd genuinely like to hear where. But if you're spending your
+own afternoons hand-stopping containers and squinting at logs, I'd at least think
+hard about which parts of that actually need you in the chair. In my experience,
+it's fewer than it feels like.
+
+{/*
+  Available components — import at the top of the file, then use inline:
+
+    import Callout from '../../components/Callout.astro';
+    import Terminal from '../../components/Terminal.astro';
+
+    <Callout type="info|warn|danger|success">…</Callout>
+    <Terminal title="zsh"> fenced console block </Terminal>
+*/}
