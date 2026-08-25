@@ -1,0 +1,405 @@
+---
+title: 'The Harness Within the Harness'
+description: What I learned building a portable MCP boundary between an agent conversation and a bounded execution harness
+pubDate: 2026-08-24
+tags: ['ai-engineering', 'agentic-workflows', 'mcp', 'software-architecture', 'developer-tools']
+draft: false
+heroImage: ../../assets/posts/the-harness-within-the-harness.png
+heroImageAlt: 'A mechanical outer shell opened to reveal a smaller illuminated mechanism within'
+---
+
+import harnessNow from '../../assets/posts/multi-layer-harness-now.svg';
+import multiLayerHarness from '../../assets/posts/multi-layer-harness.svg';
+
+## Feeling the pain
+
+Are you getting coding harness fatigue? Wondering how you're going to port those
+skills and scripts you spent so long crafting to the next big thing?
+
+Yeah, me too.
+
+Moving between harnesses has a way of making the differences painfully obvious.
+A skill may carry over. An agent definition may not. Plugins, hooks, commands,
+subagents and approval flows all have their own ideas about how they should work.
+Even when two harnesses support the same model, the behaviour surrounding that
+model can be completely different.
+
+I had already run straight into this while moving between coding harnesses.
+Moving the files was the easy part. Preserving how the work actually ran was
+not.
+
+So I decided to spend some time experimenting with an approach that might give
+me a more portable foundation. To my surprise, I ended up with an architecture
+that offered more than portability:
+
+- **A portable behavioural core**: One implementation behind an interface that
+  multiple harnesses already understand.
+- **Cross-provider capabilities and cost control**: Choose which model, if any,
+  runs each part of a task.
+- **Bounded execution**: Move along a spectrum from pure model-driven work to
+  entirely deterministic software.
+- **Context control**: Decide exactly what each inner model sees rather than
+  handing it the entire parent conversation by default.
+- **Durable execution**: Let long-running work survive a disconnected or
+  restarted parent harness.
+
+Here comes the surprise: This isn't some shiny new protocol that enables all of
+the above. It's one that's been here all along: **Good old MCP.**
+
+Well, sort of.
+
+MCP doesn't magically provide model routing, durable state, deterministic
+workflows or sensible approval boundaries. What it provides is the seam. It
+gave me a narrow, typed interface between the agent talking to me and software
+executing on my behalf. The interesting part came from what I could put behind
+that seam.
+
+## One harness, two very different jobs
+
+A coding harness is great at conversation. It has the broad context. It can ask
+follow-up questions, understand corrections, present options and carry opaque
+details between tool calls without making me think about them.
+
+Execution has a different set of needs. It may require fixed ordering, bounded
+retries, model selection, durable state, cancellation, recovery and guarantees
+around side effects. Those concerns are usually easier to express and test in
+software than in a prompt.
+
+The architectural shift was to stop treating those as one job.
+
+In the approach I took, the coding agent still owns the conversation and the
+top-level tool-selection loop. An inner, portable harness owns the repeatable
+execution contract for the capability the coding agent invokes.
+
+This is the practical extension of that question about
+[control-loop ownership](https://demianbrecht.com/posts/the-division-of-the-local-harnesses/).
+
+## The single-layer harness
+
+<img
+  src={harnessNow.src}
+  alt="Single-layer architecture: the coding harness owns the conversation and task orchestration, using skills, plugins, subagents, local tools and MCP servers while execution policy lives largely in prompts and conversational state."
+  width={1200}
+  height={630}
+/>
+
+This is the most common approach today: The coding harness owns the
+conversation, interprets the skill, chooses the tools, orders the work and
+decides when it's done. The tools may be deterministic, but the model owns the
+execution path. That's exactly what I want for exploratory work and a fantastic
+way to get an idea working quickly.
+
+The problems start when the prose becomes an operating contract.
+
+If a skill specifies ordering, retries, approval and model selection, the model
+is acting as the runtime. Moving the skill moves the words, but not necessarily
+the behaviour. A script helps only with the part inside it; if the model still
+decides when to call it and what happens next, the larger contract remains in
+the conversation.
+
+## The multi-layer harness
+
+<img
+  src={multiLayerHarness.src}
+  alt="Multi-layer architecture: the coding harness owns conversation and top-level orchestration, while a portable execution harness exposes typed MCP capabilities backed by deterministic functions, bounded workflows and agentic nodes."
+  width={1200}
+  height={730}
+/>
+
+So what if we keep the conversation exactly where it belongs, but move the
+repeatable execution contract into software?
+
+That is what the proof of concept became. The parent coding harness connects to
+a local MCP server over stdio. From the parent's perspective it gets a set of
+ordinary, typed tools. Behind those tools, the inner harness can call regular
+Python functions, run a checkpointed graph, invoke one or more models, connect
+to downstream MCP servers or call an API directly.
+
+The parent does not need to know which mechanism a capability uses. More
+importantly, switching the parent does not require rebuilding that mechanism in
+the new harness's native plugin or agent format. The new parent needs MCP
+configuration and, at most, a thin skill explaining how to use the tools well.
+
+This isn't a nested replacement for the coding agent. The parent still decides
+which capability to invoke and owns the interaction with the user. MCP is the
+boundary between that conversation and a substantial implementation with its
+own execution guarantees.
+
+## How I got here
+
+I didn't sit down and design the final architecture in one shot. The useful
+parts emerged as I added use cases to an experimental harness and found new
+ways for my original assumptions to be wrong. It put the argument from
+[Stop Asking LLMs to Be Deterministic](https://demianbrecht.com/posts/stop-asking-llms-to-be-deterministic/)
+behind an MCP boundary: Let software own the predictable parts and reserve
+model judgment for the places that need it.
+
+### Start simple: Drafting a work item
+
+The first meaningful workflow drafted a work item. One model turns an informal
+request into structured fields. The calling agent presents them, gathers what's
+missing and lets the user edit them through normal conversation. Separate tools
+then find valid parent items and owners, preview the complete work item without
+writing and revalidate it immediately before creation.
+
+This was the first useful separation: The parent owns the interview; the inner
+harness owns the data contract and side effect. A workflow did not need to be
+one giant tool call. Small capabilities let the caller own the conversation
+without giving it ownership of the invariants.
+
+### Then it got long: Reviewing a pull request
+
+PR review brought a different set of requirements. A review graph fans out
+across reviewer models and perspectives, gives them bounded read-only source
+tools, deliberates over findings and aggregates the result. It can take long
+enough that holding one MCP request open is a bad idea, so the MCP boundary
+exposes lifecycle tools instead.
+
+From the parent harness, a representative invocation looks like this. The
+operation ID and outputs below are shortened to focus on the lifecycle:
+
+```text
+User: Review this PR with independent quality and security perspectives.
+
+Agent → start_pr_review(
+  pr_url="https://github.com/example-org/example-repo/pull/42",
+  models={
+    "quality": ["provider-a/reviewer"],
+    "security": ["provider-b/reviewer"]
+  }
+)
+← {"operation_id": "84d1…", "status": "queued"}
+
+Agent → get_pr_review(operation_id="84d1…")
+← {"status": "ready", "preview_ready": true, "commit_ready": true}
+
+Agent → preview_pr_review(operation_id="84d1…")
+← {"revision": 1, "payload_hash": "b12f…", "summary": "…", "comments": ["…"]}
+
+Agent: Here is the exact review that is ready to publish. Post it?
+User: Yes.
+
+Agent → commit_pr_review(
+  operation_id="84d1…", revision=1, payload_hash="b12f…"
+)
+← {"status": "completed"}
+```
+
+The parent carries the opaque ID and owns the approval conversation. The inner
+harness owns the fan-out, repository snapshot, budgets, checkpoints and exact
+payload that is eventually published. The operation survives independently of
+the chat session that started it.
+
+### Durable does not mean agentic
+
+A long-running provisioning workflow broke another assumption. The external
+operation can take tens of minutes and needs persistence, cancellation and
+restart recovery—including the awkward point where a process may have started
+before its receipt was recorded.
+
+It uses no model at all.
+
+That distinction turned out to be important: **Durability and agency are
+different dimensions.** A deterministic job may need a checkpointed graph. An
+agentic task may be short enough to run as a normal request. Choosing a workflow
+engine does not mean every node suddenly needs an LLM.
+
+A later two-stage data lookup reinforced the point: It is a durable search with
+deterministic query construction and result grouping. The conversational
+entrypoint does not make the work itself agentic.
+
+### Finally, put an agent inside the boundaries
+
+An operational investigation tested the other end of the spectrum. This one
+really does need agentic behaviour: An investigator has to form hypotheses,
+choose evidence and adapt to what it finds. It follows the same broad division
+I use for
+[runtime QA](https://demianbrecht.com/posts/runtime-qa-give-the-agent-the-loop-not-the-last-word/):
+Give the agent the investigative loop, while software and people retain the
+consequential decisions.
+
+But "agentic" doesn't have to mean "unbounded."
+
+The graph fixes the broad topology: investigate, validate, revise if necessary,
+then finish or return an inconclusive result. The investigator and validator
+have separate model configurations and explicit tool-call budgets, the number
+of revision rounds is capped and the entire operation has a deadline. The tools
+are allowlisted and read-only.
+
+Even the final team-chat post sits outside the agentic loop. The server renders
+the exact message, hashes it and waits. Only a commit matching that revision
+and hash can publish it.
+
+The output is still probabilistic. The **operating envelope** is not.
+
+## The execution spectrum
+
+I originally split the project into tools, workflows and agents. That worked
+well enough for organizing code, but it wasn't a particularly good mental
+model. The categories overlap:
+
+- An MCP tool is an interface boundary, not an execution strategy.
+- A workflow can contain deterministic functions, agentic nodes or both.
+- An agent can be one bounded part of a larger deterministic graph.
+- A deterministic workflow can be durable even though it never calls a model.
+
+What emerged was a set of independent decisions:
+
+| Question | One end | The other end |
+| --- | --- | --- |
+| How much judgment is required? | Deterministic functions | Model-driven tool loops |
+| How long does it live? | One request | Durable, recoverable operation |
+| Can it change the outside world? | Read-only | Previewed and committed mutation |
+| Who chooses the path? | Fixed topology | Agent-selected next action |
+| What context does it need? | Explicit typed input | Bounded tools and model context |
+
+This lets each problem use the least agentic mechanism that fits. It also means
+I can test the topology, state transitions, validation and side-effect policy
+with normal software tests, while keeping evals focused on the nodes where
+model judgment actually matters.
+
+## Revisiting the benefits
+
+With the implementation in place, the benefits ended up being a little more
+specific than my original claims.
+
+### Portability, not parity
+
+The portable part is the behavioural core behind MCP: Tool schemas, validation,
+model choices, workflow state and execution bounds travel together. I don't
+need separate PR review implementations for Claude Code and OpenCode.
+
+That isn't just an aspiration. I configured two different coding harnesses to
+launch the same server with the same command; only the host-specific MCP
+configuration changed.
+
+The experience is not identical. Installation, tool approval, surrounding
+context and UI still belong to the host, and a thin host-specific skill may
+improve tool use. "Write once, works everywhere" would be overselling it. The
+useful claim is narrower: Preserve the execution contract while swapping the
+conversational shell.
+
+### Cross-provider model routing and cost control
+
+Because the inner harness creates the model calls, model selection becomes
+ordinary configuration. A task can use one model for investigation, another
+for independent validation and no model at all for deterministic work. A PR
+review can deliberately use models from different families instead of whatever
+the parent harness happens to provide.
+
+MCP doesn't provide this. It merely lets the parent call an implementation that
+does. The cost control comes from choosing where model judgment adds value,
+setting explicit limits there and keeping everything else out of the token
+meter.
+
+### Bounded execution
+
+"Bounded" does not mean "deterministic." A model can choose evidence and form
+hypotheses while software controls its tools, budget, runtime and authority.
+That makes the task governable, not predictable.
+
+At the other end, a capability can be plain Python. A conversational entrypoint
+doesn't make deterministic work agentic.
+
+### Full context control
+
+The parent model has broad conversational and workspace context. An inner model
+does not inherit that context unless I explicitly pass it across the boundary.
+It receives the exact tools chosen for its role and deliberately constructed
+system and user prompts.
+
+That control falls into two related disciplines: Prompt engineering defines how
+a model should behave during an invocation. Graph engineering decides when that
+invocation happens, which state becomes its context, which tools it receives and
+what happens next.
+
+#### Prompt engineering: What the model knows
+
+The system prompt describes **how to operate**: Role, safety boundaries,
+evidence standards and tool policy. The user prompt describes **what to work
+on**: The dossier, environment, time window, previous candidate and validator
+feedback. That separation keeps chat messages and logs as untrusted data below
+the harness-owned operating contract. It doesn't eliminate prompt injection,
+but it avoids mixing evidence into the highest-authority instructions.
+
+The system prompt doesn't have to be static, either. The investigator combines
+a stable role, safety rules and observability guidance with the current round,
+remaining rounds and tool-call budget. The graph separately enforces the
+exploration window. The user prompt evolves independently, adding the prior
+candidate and validator objections when a revision is required.
+
+#### Graph engineering: When and how the model runs
+
+Dynamic system prompts become supremely useful because a long investigation is
+not in the same state after a validator rejection and a round of tool calls as
+it was at the start. The graph selects the investigator or validator, attaches the
+appropriate tools and budgets and decides whether another revision is possible.
+On the final round, it changes the operating contract. When exploration time
+runs out, it removes the tools and requires structured synthesis from the
+evidence already collected.
+
+The graph also uses a purpose-built compaction prompt to preserve exact queries,
+results, failures, contradictions and unresolved checks as a durable
+investigation notebook. The model decides how to investigate; software decides
+when it runs, what it knows and which constraints apply **right now**. Those
+prompts and transitions can be generated from validated state and tested like
+the rest of the execution contract.
+
+### Durable execution through ordinary tools
+
+The distinction between ephemeral and durable work was one of the more useful
+learnings from the experiment. A quick draft can return directly. A review,
+provisioning request or investigation needs an operation identity, persisted
+state and lifecycle calls.
+
+I deliberately kept ordinary MCP tools as the baseline: `start`, `get`,
+`cancel`, and, where a side effect is involved, `preview` and `commit`.
+[MCP Tasks](https://modelcontextprotocol.io/extensions/tasks/overview) can
+provide a protocol-native lifecycle where both sides support the extension, but
+the workflow does not depend on that support—or on keeping one request or one
+conversation alive.
+
+## The part that isn't free
+
+Of course, moving the execution contract into software means owning that
+software.
+
+The inner harness needs packaging, configuration, tests, observability,
+authentication, state storage, schema evolution and lifecycle management. It
+doesn't automatically inherit the parent's filesystem tools, model providers,
+credentials or MCP connections. If it needs those things, they have to be
+passed in or implemented behind its own boundary.
+
+That last point became particularly obvious when the harness needed to connect
+to team-chat and observability systems through downstream MCP servers. Their
+credentials aren't passed through by the parent. The inner harness establishes
+its own OAuth sessions, stores and refreshes its own tokens and reports when an
+interactive browser authorization is required.
+Portability didn't remove that complexity. It moved it into a component I could
+control and reuse.
+
+This would be ridiculous for every one-off task. A short skill is still the
+right answer for fast-moving, low-consequence work. The multi-layer approach
+starts earning its keep when a capability is shared across harnesses, runs for
+a long time, has meaningful side effects, needs provider-specific routing or
+has an execution contract worth testing.
+
+## So, what did I actually build?
+
+I started out trying to make my agent capabilities more portable. What I ended
+up building looked less like a collection of MCP tools and more like a local
+application with MCP as its front door.
+
+The coding harness still does the part I want it to do: Talk to me, understand
+what I'm trying to accomplish, gather broad context and choose a capability.
+The inner harness does the part I want to be boring and repeatable: Enforce the
+contract, call models deliberately, persist state and control side effects.
+
+MCP isn't the application. It isn't the control loop. It's the narrow seam that
+lets both layers do the job they're best suited for.
+
+And when the next big harness pops up? I still expect to write some config and
+probably a thin skill. But I shouldn't have to rebuild the application hiding
+behind it.
+
+I'll take that trade.

@@ -1,0 +1,123 @@
+<svg xmlns="http://www.w3.org/2000/svg" role="img" viewBox="0 0 1200 730" aria-labelledby="title description">
+  <title id="title">The multi-layer harness</title>
+  <desc id="description">A coding harness owns conversation and top-level orchestration. It calls a portable execution harness through MCP. The inner harness owns capability contracts implemented with deterministic functions, bounded workflows and agentic nodes, plus state, recovery, model routing and downstream connections.</desc>
+
+  <defs>
+    <marker id="arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+      <path d="M1 1 9 5 1 9Z" fill="#4a9eff"/>
+    </marker>
+    <marker id="auth-arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+      <path d="M1 1 9 5 1 9Z" fill="#d9a038"/>
+    </marker>
+  </defs>
+
+  <style>
+    text { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Inter, sans-serif; }
+    .boundary { fill: #8b95a3; font-size: 14px; font-weight: 700; letter-spacing: 1.4px; }
+    .heading { fill: #e6e9ee; font-size: 21px; font-weight: 650; }
+    .label { fill: #e6e9ee; font-size: 16.5px; font-weight: 620; }
+    .body { fill: #a3abb8; font-size: 14px; }
+    .micro { fill: #8b95a3; font-size: 12.5px; font-weight: 550; }
+    .accent { fill: #7cbaff; }
+    .amber { fill: #d9a038; }
+    .outer { fill: #171b21; stroke: #3a424d; stroke-width: 1.5; }
+    .inner { fill: #151e28; stroke: #4a9eff; stroke-width: 2; }
+    .node { fill: #21262e; stroke: #3a424d; stroke-width: 1.5; }
+    .primary { fill: #1b2938; stroke: #4a9eff; stroke-width: 1.7; }
+    .auth { fill: #282219; stroke: #8c672e; stroke-width: 1.5; }
+    .call { fill: none; stroke: #4a9eff; stroke-width: 2; marker-end: url(#arrow); }
+    .soft { fill: none; stroke: #526170; stroke-width: 1.5; marker-end: url(#arrow); }
+    .oauth { fill: none; stroke: #d9a038; stroke-width: 2; stroke-dasharray: 6 6; marker-start: url(#auth-arrow); marker-end: url(#auth-arrow); }
+  </style>
+
+  <rect width="1200" height="730" rx="4" fill="#14171c"/>
+
+  <rect x="24" y="164" width="104" height="82" rx="12" class="outer"/>
+  <circle cx="54" cy="196" r="10" fill="none" stroke="#8b95a3" stroke-width="2"/>
+  <path d="M38 226c3-13 30-13 33 0" fill="none" stroke="#8b95a3" stroke-width="2" stroke-linecap="round"/>
+  <text x="90" y="211" text-anchor="middle" class="label">User</text>
+
+  <rect x="150" y="32" width="792" height="666" rx="21" class="outer"/>
+  <text x="178" y="66" class="boundary">CODING HARNESS · CONVERSATION + TOP-LEVEL ORCHESTRATION</text>
+
+  <rect x="198" y="94" width="696" height="96" rx="14" class="node"/>
+  <text x="227" y="131" class="heading">Conversation model</text>
+  <text x="227" y="159" class="body">User intent · broad context · natural follow-up · capability selection</text>
+  <rect x="734" y="115" width="132" height="48" rx="10" fill="#1a1e24" stroke="#3a424d"/>
+  <text x="800" y="135" text-anchor="middle" class="micro">OPTIONAL SKILL</text>
+  <text x="800" y="153" text-anchor="middle" class="body">how to call it</text>
+
+  <path d="M128 205H150" class="call"/>
+  <path d="M150 205C178 205 175 143 198 143" class="soft"/>
+
+  <rect x="372" y="218" width="348" height="64" rx="13" class="primary"/>
+  <text x="546" y="243" text-anchor="middle" class="label">Host MCP client</text>
+  <text x="546" y="265" text-anchor="middle" class="micro">typed tool call into the portable boundary</text>
+  <path d="M546 190V218" class="call"/>
+
+  <rect x="198" y="312" width="696" height="354" rx="18" class="inner"/>
+  <text x="226" y="345" class="boundary accent">PORTABLE EXECUTION HARNESS · OWNS CAPABILITY CONTRACTS</text>
+
+  <rect x="226" y="368" width="640" height="56" rx="11" class="primary"/>
+  <text x="250" y="393" class="label">Typed MCP server</text>
+  <text x="842" y="393" text-anchor="end" class="body">stable capabilities · structured inputs + results</text>
+  <path d="M546 282V368" class="call"/>
+  <text x="560" y="310" class="micro accent">MCP</text>
+
+  <text x="226" y="454" class="micro">EXECUTION SPECTRUM · CHOOSE THE LEAST AGENTIC MECHANISM THAT FITS</text>
+
+  <rect x="226" y="471" width="198" height="118" rx="12" class="node"/>
+  <text x="246" y="501" class="label">Deterministic capability</text>
+  <text x="246" y="526" class="body">functions · validation</text>
+  <text x="246" y="549" class="body">adapters · transformations</text>
+  <text x="246" y="573" class="micro accent">NO MODEL REQUIRED</text>
+
+  <rect x="447" y="471" width="198" height="118" rx="12" class="node"/>
+  <text x="467" y="501" class="label">Bounded workflow</text>
+  <circle cx="479" cy="537" r="7" fill="#4a9eff"/>
+  <circle cx="546" cy="537" r="7" fill="#4a9eff"/>
+  <circle cx="613" cy="537" r="7" fill="#4a9eff"/>
+  <path d="M486 537H539M553 537H606" stroke="#4a9eff" stroke-width="2" marker-end="url(#arrow)"/>
+  <text x="467" y="573" class="micro accent">FIXED TOPOLOGY + BOUNDS</text>
+
+  <rect x="668" y="471" width="198" height="118" rx="12" class="node"/>
+  <text x="688" y="501" class="label">Agentic node</text>
+  <text x="688" y="526" class="body">model ↔ allowlisted tools</text>
+  <text x="688" y="549" class="body">judgement + tool loop</text>
+  <text x="688" y="573" class="micro accent">BOUNDED MODEL LOOP</text>
+
+  <rect x="226" y="610" width="302" height="34" rx="8" fill="#1a1e24" stroke="#3a424d"/>
+  <text x="377" y="632" text-anchor="middle" class="micro">state · recovery · model routing · policy</text>
+  <rect x="545" y="610" width="185" height="34" rx="8" class="primary"/>
+  <text x="637" y="632" text-anchor="middle" class="micro accent">downstream MCP clients</text>
+  <rect x="747" y="610" width="119" height="34" rx="8" class="auth"/>
+  <text x="806" y="632" text-anchor="middle" class="micro amber">OAuth + keys</text>
+
+  <text x="980" y="66" class="boundary">EXTERNAL</text>
+  <rect x="970" y="94" width="205" height="572" rx="20" class="outer"/>
+
+  <rect x="992" y="126" width="161" height="82" rx="12" class="primary"/>
+  <text x="1072" y="158" text-anchor="middle" class="label">MCP servers</text>
+  <text x="1072" y="182" text-anchor="middle" class="micro">shared upstream tools</text>
+
+  <rect x="992" y="250" width="161" height="82" rx="12" class="auth"/>
+  <text x="1072" y="282" text-anchor="middle" class="label">OAuth server</text>
+  <text x="1072" y="306" text-anchor="middle" class="micro">browser PKCE</text>
+
+  <rect x="992" y="374" width="161" height="82" rx="12" class="node"/>
+  <text x="1072" y="406" text-anchor="middle" class="label">Model providers</text>
+  <text x="1072" y="430" text-anchor="middle" class="micro">per-task routing</text>
+
+  <rect x="992" y="498" width="161" height="82" rx="12" class="node"/>
+  <text x="1072" y="530" text-anchor="middle" class="label">APIs + services</text>
+  <text x="1072" y="554" text-anchor="middle" class="micro">direct adapters</text>
+
+  <path d="M720 250C862 250 872 167 992 167" class="call"/>
+  <text x="862" y="197" text-anchor="middle" class="micro accent">DIRECT MCP</text>
+
+  <path d="M866 530C930 530 926 415 992 415" class="soft"/>
+  <path d="M730 627C920 627 908 167 992 167" class="call"/>
+  <text x="925" y="492" text-anchor="middle" class="micro accent">INNER MCP</text>
+  <path d="M866 627C952 627 920 291 992 291" class="oauth"/>
+  <text x="928" y="596" text-anchor="middle" class="micro amber">INNER PKCE</text>
+</svg>

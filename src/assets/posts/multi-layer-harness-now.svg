@@ -1,0 +1,110 @@
+<svg xmlns="http://www.w3.org/2000/svg" role="img" viewBox="0 0 1200 630" aria-labelledby="title description">
+  <title id="title">The single-layer harness</title>
+  <desc id="description">A coding harness owns the conversation and task orchestration. Skills, plugins, subagents, local tools and MCP clients all feed the same model-directed execution path, while APIs and authorization systems sit outside the harness.</desc>
+
+  <defs>
+    <marker id="arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+      <path d="M1 1 9 5 1 9Z" fill="#4a9eff"/>
+    </marker>
+    <marker id="auth-arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+      <path d="M1 1 9 5 1 9Z" fill="#d9a038"/>
+    </marker>
+  </defs>
+
+  <style>
+    text { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Inter, sans-serif; }
+    .boundary { fill: #8b95a3; font-size: 14px; font-weight: 700; letter-spacing: 1.4px; }
+    .heading { fill: #e6e9ee; font-size: 21px; font-weight: 650; }
+    .label { fill: #e6e9ee; font-size: 17px; font-weight: 620; }
+    .body { fill: #a3abb8; font-size: 14px; }
+    .micro { fill: #8b95a3; font-size: 12.5px; font-weight: 550; }
+    .accent { fill: #7cbaff; }
+    .amber { fill: #d9a038; }
+    .host { fill: #171b21; stroke: #4a9eff; stroke-width: 2; }
+    .external { fill: #171b21; stroke: #3a424d; stroke-width: 1.5; }
+    .node { fill: #21262e; stroke: #3a424d; stroke-width: 1.5; }
+    .primary { fill: #1b2938; stroke: #4a9eff; stroke-width: 1.7; }
+    .auth { fill: #282219; stroke: #8c672e; stroke-width: 1.5; }
+    .call { fill: none; stroke: #4a9eff; stroke-width: 2; marker-end: url(#arrow); }
+    .soft { fill: none; stroke: #526170; stroke-width: 1.5; marker-end: url(#arrow); }
+    .oauth { fill: none; stroke: #d9a038; stroke-width: 2; stroke-dasharray: 6 6; marker-start: url(#auth-arrow); marker-end: url(#auth-arrow); }
+  </style>
+
+  <rect width="1200" height="630" rx="4" fill="#14171c"/>
+
+  <rect x="28" y="270" width="108" height="82" rx="12" class="external"/>
+  <circle cx="59" cy="302" r="10" fill="none" stroke="#8b95a3" stroke-width="2"/>
+  <path d="M43 332c3-13 30-13 33 0" fill="none" stroke="#8b95a3" stroke-width="2" stroke-linecap="round"/>
+  <text x="98" y="317" text-anchor="middle" class="label">User</text>
+
+  <rect x="166" y="38" width="700" height="554" rx="20" class="host"/>
+  <text x="194" y="72" class="boundary accent">CODING HARNESS · CONVERSATION + TASK ORCHESTRATION</text>
+
+  <rect x="214" y="100" width="604" height="102" rx="14" class="primary"/>
+  <circle cx="251" cy="141" r="16" fill="none" stroke="#7cbaff" stroke-width="2"/>
+  <path d="M244 141h14M251 134v14" stroke="#7cbaff" stroke-width="2" stroke-linecap="round"/>
+  <text x="285" y="139" class="heading">Conversation model</text>
+  <text x="285" y="165" class="body">Intent · broad context · tool selection · approvals · next action</text>
+  <text x="285" y="187" class="micro">The model interprets the execution contract.</text>
+
+  <path d="M136 311H166" class="call"/>
+  <path d="M166 311C194 311 190 151 214 151" class="soft"/>
+
+  <path d="M516 202V224M310 224H722" fill="none" stroke="#526170" stroke-width="1.5"/>
+  <path d="M310 224V240" class="soft"/>
+  <path d="M516 224V240" class="soft"/>
+  <path d="M722 224V240" class="soft"/>
+
+  <rect x="214" y="240" width="176" height="102" rx="12" class="node"/>
+  <text x="302" y="275" text-anchor="middle" class="label">Skills</text>
+  <text x="302" y="301" text-anchor="middle" class="body">prompts + scripts</text>
+  <text x="302" y="324" text-anchor="middle" class="micro">behaviour by instruction</text>
+
+  <rect x="428" y="240" width="176" height="102" rx="12" class="node"/>
+  <text x="516" y="275" text-anchor="middle" class="label">Plugins</text>
+  <text x="516" y="301" text-anchor="middle" class="body">skills + integrations</text>
+  <text x="516" y="324" text-anchor="middle" class="micro">host-specific packaging</text>
+
+  <rect x="642" y="240" width="176" height="102" rx="12" class="node"/>
+  <text x="730" y="275" text-anchor="middle" class="label">Subagents</text>
+  <text x="730" y="301" text-anchor="middle" class="body">delegated model loops</text>
+  <text x="730" y="324" text-anchor="middle" class="micro">separate context windows</text>
+
+  <path d="M302 342V371M516 342V371M730 342V371" class="soft"/>
+
+  <rect x="214" y="376" width="282" height="102" rx="12" class="node"/>
+  <text x="238" y="410" class="label">Workspace + local tools</text>
+  <text x="238" y="437" class="body">filesystem · shell · source control</text>
+  <text x="238" y="460" class="micro">host-owned context and transient state</text>
+
+  <rect x="536" y="376" width="282" height="102" rx="12" class="primary"/>
+  <text x="560" y="410" class="label">MCP client</text>
+  <text x="560" y="437" class="body">tool discovery · schemas · sessions</text>
+  <text x="560" y="460" class="micro">portable tools, host-directed ordering</text>
+
+  <rect x="214" y="512" width="604" height="48" rx="10" fill="#1a1e24" stroke="#2a3038"/>
+  <text x="516" y="533" text-anchor="middle" class="body">Ordering · retries · state · completion · safety</text>
+  <text x="516" y="551" text-anchor="middle" class="micro">The broader execution contract lives in prompts + conversation.</text>
+
+  <text x="912" y="72" class="boundary">EXTERNAL</text>
+  <rect x="902" y="100" width="270" height="492" rx="20" class="external"/>
+
+  <rect x="928" y="150" width="218" height="108" rx="13" class="node"/>
+  <text x="952" y="185" class="label">MCP servers</text>
+  <text x="952" y="212" class="body">remote tools + resources</text>
+  <text x="952" y="235" class="micro">independent sessions</text>
+
+  <rect x="928" y="310" width="218" height="108" rx="13" class="auth"/>
+  <text x="952" y="345" class="label">Authorization server</text>
+  <text x="952" y="372" class="body">browser PKCE OAuth</text>
+  <text x="952" y="395" class="micro">callback · tokens · refresh</text>
+
+  <rect x="928" y="470" width="218" height="74" rx="13" class="node"/>
+  <text x="1037" y="501" text-anchor="middle" class="label">APIs + services</text>
+  <text x="1037" y="525" text-anchor="middle" class="micro">separate trust domains</text>
+
+  <path d="M818 418C875 418 870 204 928 204" class="call"/>
+  <text x="875" y="290" text-anchor="middle" class="micro accent">MCP</text>
+  <path d="M818 442C880 442 868 364 928 364" class="oauth"/>
+  <text x="879" y="421" text-anchor="middle" class="micro amber">PKCE</text>
+</svg>
