@@ -1,6 +1,6 @@
 ---
-title: 'The Harness Within the Harness'
-description: What I learned building a portable MCP boundary between an agent conversation and a bounded execution harness
+title: 'The Harness Within the Harness: A Portable Application Boundary for Coding Agents'
+description: 'Keep the workflow, swap the coding harness: using MCP as a portable boundary around bounded, durable agent applications'
 pubDate: 2026-08-24
 tags: ['ai-engineering', 'agentic-workflows', 'mcp', 'software-architecture', 'developer-tools']
 draft: false
@@ -28,9 +28,17 @@ I had already run straight into this while moving between coding harnesses.
 Moving the files was the easy part. Preserving how the work actually ran was
 not.
 
-So I decided to spend some time experimenting with an approach that might give
-me a more portable foundation. To my surprise, I ended up with an architecture
-that offered more than portability:
+The design goal became simple: **Keep the workflow. Swap the harness.**
+
+The recent push toward open coding harnesses is a welcome part of the answer.
+An open, provider-neutral host makes the conversational layer more inspectable
+and replaceable. But it does not make an execution contract portable when that
+contract still lives in host-specific skills, plugins, hooks and approval
+flows. Switching open harnesses can still mean rebuilding how the work runs.
+
+So I spent some time experimenting with a portable application boundary beneath
+the conversational host. To my surprise, I ended up with an architecture that
+offered more than portability:
 
 - **A portable behavioural core**: One implementation behind an interface that
   multiple harnesses already understand.
@@ -42,6 +50,8 @@ that offered more than portability:
   handing it the entire parent conversation by default.
 - **Durable execution**: Let long-running work survive a disconnected or
   restarted parent harness.
+- **Local execution**: Reuse the authenticated tools already on my machine
+  instead of copying long-lived credentials into a hosted runner.
 
 Here comes the surprise: This isn't some shiny new protocol that enables all of
 the above. It's one that's been here all along: **Good old MCP.**
@@ -125,35 +135,36 @@ which capability to invoke and owns the interaction with the user. MCP is the
 boundary between that conversation and a substantial implementation with its
 own execution guarantees.
 
-## How I got here
+### Local by design
 
-I didn't sit down and design the final architecture in one shot. The useful
-parts emerged as I added use cases to an experimental harness and found new
-ways for my original assumptions to be wrong. It put the argument from
-[Stop Asking LLMs to Be Deterministic](https://demianbrecht.com/posts/stop-asking-llms-to-be-deterministic/)
-behind an MCP boundary: Let software own the predictable parts and reserve
-model judgment for the places that need it.
+I made one other choice deliberately: The inner harness runs locally over
+stdio. Remote execution isn't a future milestone here. Local is the point.
 
-### Start simple: Drafting a work item
+That means the harness can use the same authenticated tooling I already use:
+Source-control, cloud and cluster CLIs, an SSH agent and whatever else is
+available in my local environment. I don't have to copy long-lived credentials
+into a hosted runner or build a second credential-distribution system just to
+move execution somewhere else.
 
-The first meaningful workflow drafted a work item. One model turns an informal
-request into structured fields. The calling agent presents them, gathers what's
-missing and lets the user edit them through normal conversation. Separate tools
-then find valid parent items and owners, preview the complete work item without
-writing and revalidate it immediately before creation.
+That authority cuts both ways. Local MCP is not a sandbox. The server runs with
+whatever permissions its process has, so the inner harness exposes narrow,
+allowlisted capabilities rather than handing a model unrestricted access to my
+environment. It also doesn't mean all data stays on my machine. Model calls and
+downstream APIs still receive whatever I send them.
 
-This was the first useful separation: The parent owns the interview; the inner
-harness owns the data contract and side effect. A workflow did not need to be
-one giant tool call. Small capabilities let the caller own the conversation
-without giving it ownership of the invariants.
+This is separate from the portability claim. MCP makes the conversational host
+replaceable; local execution decides where the application and its trust
+boundary live. When local authenticated tooling isn't enough, the harness owns
+the downstream authentication itself. Either way, credentials belong to the
+local application rather than the parent conversation.
 
-### Then it got long: Reviewing a pull request
+## The operation lifecycle is the concrete seam
 
-PR review brought a different set of requirements. A review graph fans out
-across reviewer models and perspectives, gives them bounded read-only source
-tools, deliberates over findings and aggregates the result. It can take long
-enough that holding one MCP request open is a bad idea, so the MCP boundary
-exposes lifecycle tools instead.
+Pull-request review made the boundary tangible. A review graph fans out across
+reviewer models and perspectives, gives them bounded read-only source tools,
+deliberates over findings and aggregates the result. It can take long enough
+that holding one MCP request open is a bad idea, so the server exposes lifecycle
+tools instead.
 
 From the parent harness, a representative invocation looks like this. The
 operation ID and outputs below are shortened to focus on the lifecycle:
@@ -185,10 +196,112 @@ Agent → commit_pr_review(
 ← {"status": "completed"}
 ```
 
-The parent carries the opaque ID and owns the approval conversation. The inner
-harness owns the fan-out, repository snapshot, budgets, checkpoints and exact
-payload that is eventually published. The operation survives independently of
-the chat session that started it.
+That lifecycle is the application boundary in miniature. The parent carries an
+opaque operation ID and owns the approval conversation. The inner harness owns
+the fan-out, repository snapshot, budgets, checkpoints and exact payload that
+is eventually published. The operation survives independently of the chat
+session that started it.
+
+The `preview` and `commit` split matters just as much as `start` and `get`. The
+parent can show the user exactly what will change without gaining the authority
+to quietly change it. A commit is accepted only for the previewed revision and
+payload hash. Conversation stays flexible; the side-effect contract does not.
+
+## Keep the workflow, swap the harness
+
+The proof of portability was deliberately boring: I moved the parent role from
+Claude Code to OpenCode without changing the review graph or lifecycle tools.
+Both hosts launched the same local server over stdio. Only their configuration
+shape and a thin layer of usage instructions changed.
+
+Stripped of project-specific paths and options, the two host entries reduce to
+this. Claude Code uses a project-level
+[`.mcp.json`](https://code.claude.com/docs/en/mcp#project-scope):
+
+```json
+{
+  "mcpServers": {
+    "portable-operations": {
+      "command": "portable-harness",
+      "args": ["serve"]
+    }
+  }
+}
+```
+
+OpenCode expresses the same local server in
+[`opencode.json`](https://v2.opencode.ai/docs/mcp-servers/):
+
+```json
+{
+  "$schema": "https://opencode.ai/config.json",
+  "mcp": {
+    "servers": {
+      "portable-operations": {
+        "type": "local",
+        "command": ["portable-harness", "serve"]
+      }
+    }
+  }
+}
+```
+
+After the second host connected, it discovered the same tools and used the same
+`start`, `get`, `preview` and `commit` lifecycle. The operation state did not
+move into the new conversation. The models, checkpoints, validation and
+side-effect policy did not move into host-specific files. The migration changed
+the conversational shell, not the application.
+
+That is the useful portability claim. It is not parity.
+
+## What MCP does not make portable
+
+MCP gives both hosts a common way to discover typed capabilities, invoke them
+and receive results. It does not standardize everything around that exchange:
+
+| Concern | What remains host- or application-specific |
+| --- | --- |
+| Context semantics | The host decides how it assembles conversation and workspace context. The inner application sees only what crosses the boundary or what it gathers through its own tools. |
+| Approvals | Each host presents and remembers tool approvals differently. The application must still enforce its own preview, authorization and mutation rules. |
+| Sandboxing | MCP does not define the containment, filesystem access, credentials or network authority of the code behind a tool. |
+| Event models | Hosts differ in how they represent progress, cancellation, reconnects and long-running work, and in which protocol extensions they support. |
+| Execution guarantees | Durability, retries, idempotency, recovery and side-effect guarantees belong to the implementation behind the seam. |
+
+Installation, UI and surrounding context still feel different in each host. A
+thin host-specific skill can improve tool use, but it cannot be the source of
+the invariants I am trying to preserve. "Write once, works everywhere" would be
+overselling it. The narrower claim is: Preserve the execution contract while
+swapping the conversational shell.
+
+## How I got here
+
+I didn't sit down and design the final architecture in one shot. The useful
+parts emerged as I added use cases to an experimental harness and found new
+ways for my original assumptions to be wrong. It put the argument from
+[Stop Asking LLMs to Be Deterministic](https://demianbrecht.com/posts/stop-asking-llms-to-be-deterministic/)
+behind an MCP boundary: Let software own the predictable parts and reserve
+model judgment for the places that need it.
+
+### Start simple: Drafting a work item
+
+The first meaningful workflow drafted a work item. One model turns an informal
+request into structured fields. The calling agent presents them, gathers what's
+missing and lets the user edit them through normal conversation. Separate tools
+then find valid parent items and owners, preview the complete work item without
+writing and revalidate it immediately before creation.
+
+This was the first useful separation: The parent owns the interview; the inner
+harness owns the data contract and side effect. A workflow did not need to be
+one giant tool call. Small capabilities let the caller own the conversation
+without giving it ownership of the invariants.
+
+### Then it got long
+
+The pull-request review introduced the lifecycle shown above. Fan-out and
+deliberation made a single long-held request increasingly fragile, while the
+possibility of publishing comments made a precise preview-and-commit contract
+more important. That was the point where the inner harness stopped feeling like
+a collection of tools and started feeling like an application.
 
 ### Durable does not mean agentic
 
@@ -258,26 +371,10 @@ I can test the topology, state transitions, validation and side-effect policy
 with normal software tests, while keeping evals focused on the nodes where
 model judgment actually matters.
 
-## Revisiting the benefits
+## What the boundary buys
 
 With the implementation in place, the benefits ended up being a little more
 specific than my original claims.
-
-### Portability, not parity
-
-The portable part is the behavioural core behind MCP: Tool schemas, validation,
-model choices, workflow state and execution bounds travel together. I don't
-need separate PR review implementations for Claude Code and OpenCode.
-
-That isn't just an aspiration. I configured two different coding harnesses to
-launch the same server with the same command; only the host-specific MCP
-configuration changed.
-
-The experience is not identical. Installation, tool approval, surrounding
-context and UI still belong to the host, and a thin host-specific skill may
-improve tool use. "Write once, works everywhere" would be overselling it. The
-useful claim is narrower: Preserve the execution contract while swapping the
-conversational shell.
 
 ### Cross-provider model routing and cost control
 
@@ -370,11 +467,11 @@ doesn't automatically inherit the parent's filesystem tools, model providers,
 credentials or MCP connections. If it needs those things, they have to be
 passed in or implemented behind its own boundary.
 
-That last point became particularly obvious when the harness needed to connect
-to team-chat and observability systems through downstream MCP servers. Their
-credentials aren't passed through by the parent. The inner harness establishes
-its own OAuth sessions, stores and refreshes its own tokens and reports when an
-interactive browser authorization is required.
+Beyond the authenticated local tools it can invoke directly, some capabilities
+need team-chat and observability systems exposed through downstream MCP servers.
+Their credentials aren't passed through by the parent. The inner harness
+establishes its own OAuth sessions, stores and refreshes its own tokens and
+reports when an interactive browser authorization is required.
 Portability didn't remove that complexity. It moved it into a component I could
 control and reuse.
 
