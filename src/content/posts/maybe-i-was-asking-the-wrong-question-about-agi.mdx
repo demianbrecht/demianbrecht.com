@@ -1,0 +1,110 @@
+---
+title: 'Maybe I Was Asking the Wrong Question About AGI'
+description: >-
+  I started by asking whether autoregressive LLMs could ever reach AGI. The better questions turned out to be what AGI
+  means and where we draw the boundary around the system expected to achieve it.
+pubDate: 2026-09-08
+tags: ['ai-engineering', 'agi', 'llm-architecture', 'agentic-workflows']
+draft: false
+---
+
+I'm a software engineer, not a scientist, and I love it.
+
+I enjoy solving hard, distributed applied problems at scale. It's what gets me out of bed in the morning, ready to keep
+learning even after more than twenty years of doing this professionally. However, I also love to understand how things
+work. What makes them tick. How I can bend them to do my bidding, even if that's not what they were originally intended
+to do. Some may call this a hacker's mindset. Over the last couple of years, this has also increasingly applied to the
+nature of LLMs and where they are heading.
+
+Recently, I started peeling back the layers of the LLM black box. Instead of taking the academic path, I took that of
+the applied practitioner: get a solid handle on how to use the thing, then use that experience to better understand how
+the black box actually works. Lately, one question has stumped me. Using a rough working definition of AGI as human-level
+capability across a broad range of intellectual tasks, how could today's LLM architectures possibly get us there?
+
+At the time, my reasoning went like this:
+
+At its core, and at a very high level, an LLM predicts a probability distribution over the next token, conditioned
+on the tokens that came before it. Its weights don't normally change during inference, and append-only decoding can't
+rewrite tokens it has already emitted. A surrounding system can ask it to critique, regenerate, verify or try again,
+but generating more tokens doesn't give the model an independent source of truth.
+
+That still left me wondering whether the model itself possessed anything we should call durable learning or independent
+error correction. A human can have a thought, backtrack and make changes until they reach a conclusion. All on their own.
+
+My mental model was a roomful of near-clones playing an unusually capable game of telephone: each pass could transform
+or enrich the message, but none of the participants was learning durably from the exchange.
+
+Was that enough for AGI, or was there more to the system than my framing allowed?
+
+## What the Discussion Changed
+
+<a
+href="https://www.reddit.com/r/artificial/comments/1wa8rjv/can_current_llm_architecture_actually_get_us_to/">I
+posted that question to Reddit</a>. The discussion exposed a more basic problem: I was debating the architecture before
+I'd defined either the goal or the thing I was evaluating.
+
+### What exactly is AGI?
+
+Not approximately. Not whatever definition happens to support a particular model launch or prediction. We need
+something resembling an operational definition: a set of capabilities or observable criteria against which a system can
+actually be evaluated. As an engineer, this seems almost painfully obvious in retrospect. Before arguing about whether
+an architecture can solve a problem, you need to define the problem. Without
+that, "can LLMs achieve AGI?" is underspecified from the start.
+
+### What exactly are we evaluating?
+
+Much of my original argument was about the model itself. But a model isn't necessarily the thing we're ultimately building.
+In practice, we're increasingly surrounding models with persistent memory, retrieval, tools, external sources of truth,
+verification, environmental feedback, multiple models, search and iterative
+harnesses. Those systems can retain information between interactions, revisit failed approaches, test hypotheses
+against the outside world and feed what they learn back into subsequent inference.
+
+The model hasn't necessarily acquired those capabilities internally. The
+**system** has. That changes the equation significantly.
+
+If I'm evaluating a stateless model with frozen weights, I still find some of the stronger AGI claims difficult to
+reconcile with the underlying mechanics. If I'm evaluating the entire composite
+system (models plus memory plus tools plus verification plus feedback plus
+orchestration), I'm considerably less certain.
+
+The discussion forced me to confront another subtlety: the apparent simplicity of the primitive doesn't, by itself,
+establish a low ceiling for the system built from it. Pointing out that an LLM performs autoregressive generation explains
+the mechanism, but not its ultimate limits. Simple primitives can compose into remarkably complex systems. Whether we
+can actually train, build, scale and orchestrate those systems into something we'd call AGI is a very different question
+from whether they're theoretically capable of it.
+
+That's an important distinction, and I was conflating the two somewhat in my original framing.
+
+The same applies to learning. Ordinary inference doesn't durably modify a model's weights based on experience, and I
+still think that's an important distinction when discussing the capabilities of the model itself. But perhaps durable
+learning doesn't have to exist entirely in model weights. A larger system can persist experience externally, retries it later and alter its behaviour as a consequence. Whether
+that's "real learning" becomes partly a question of where we've decided the boundary of the intelligent system lies.
+
+Which brings me back to the question that now interests me more than the one I started with:
+
+## Where does the intelligence actually live?
+
+If we eventually construct something from LLMs, persistent memory, tools, feedback loops, verification and orchestration
+that satisfies whatever rigorous definition of AGI we settle on, does it matter that no individual model inside that
+system possesses all of those capabilities?
+
+Maybe not.
+
+As an engineer, I already accept this elsewhere: no single service contains the behaviour of a distributed system as a
+whole. I still have a strong intuition that there's an important distinction between saying **a model is generally intelligent** and saying **a system built around models exhibits general intelligence**.
+But I'm considerably less convinced than I was when I started that the former is required for the latter.
+
+So I think my original question was premature. Before debating whether today's LLM architectures can get us to AGI, I
+need both an operational definition and an explicit system boundary. Only then does the architectural argument have a
+target.
+
+
+{/*
+  Available components — import at the top of the file, then use inline:
+
+    import Callout from '../../components/Callout.astro';
+    import Terminal from '../../components/Terminal.astro';
+
+    <Callout type="info|warn|danger|success">…</Callout>
+    <Terminal title="zsh"> fenced console block </Terminal>
+*/}
